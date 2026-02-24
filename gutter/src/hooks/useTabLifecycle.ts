@@ -346,14 +346,11 @@ export function useTabLifecycle(
     async (path: string) => {
       const tab = openTabs.find((t) => t.path === path);
       if (tab?.isDirty) {
-        const shouldSave = await ask(
-          `Do you want to save "${tab.name}" before closing?`,
-          { title: "Unsaved Changes", kind: "warning" },
+        const discard = await ask(
+          `"${tab.name}" has unsaved changes. Close without saving?`,
+          { title: "Unsaved Changes", kind: "warning", okLabel: "Close Without Saving", cancelLabel: "Cancel" },
         );
-        if (shouldSave) {
-          lastSaveTimeRef.current = Date.now();
-          await handleSave();
-        }
+        if (!discard) return; // User cancelled — keep tab open
       }
       // Clean up cached content for this tab
       tabContentCache.current.delete(path);
