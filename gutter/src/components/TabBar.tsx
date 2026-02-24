@@ -110,9 +110,13 @@ export function TabBar({ onNewFile, onSwitchTab, onCloseTab }: TabBarProps) {
               }}
               onContextMenu={(e) => handleTabContextMenu(e, tab.path)}
             >
-              {tab.isDirty && (
+              {tab.externallyModified ? (
+                <span title="Modified externally" className="shrink-0 flex items-center">
+                  <Circle size={6} className="text-[var(--status-info)]" />
+                </span>
+              ) : tab.isDirty ? (
                 <Circle size={6} className="text-[var(--accent)] shrink-0" />
-              )}
+              ) : null}
               {tab.isPinned && (
                 <span className="text-[10px] text-[var(--text-muted)]" title="Pinned">
                   &#x1F4CC;
