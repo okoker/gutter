@@ -119,6 +119,47 @@ export function useTabLifecycle(
 
       const isUntitled = path.startsWith("untitled:");
 
+      // Handle externally modified tabs — reload from disk instead of stale cache
+      const tabState = useWorkspaceStore.getState().openTabs.find(t => t.path === path);
+      if (tabState?.externallyModified && !isUntitled) {
+        try {
+          const diskContent = await invoke<string>("read_file", { path });
+          if (activationIdRef.current !== myActivation) return;
+          const newHash = hashContent(diskContent);
+
+          if (tabState.isDirty) {
+            // Dirty + externally modified → load cache so user keeps edits, show conflict prompt
+            if (tabContentCache.current.has(path)) {
+              const content = tabContentCache.current.get(path) || "";
+              setFilePath(isUntitled ? null : path);
+              markdownRef.current = content;
+              setContentClean(content);
+              bumpContentVersion();
+              setDirty(true);
+            }
+            setShowReloadPrompt(true);
+          } else {
+            // Clean + externally modified → silent reload from disk
+            setFilePath(path);
+            markdownRef.current = diskContent;
+            setContentClean(diskContent);
+            bumpContentVersion();
+            setDirty(false);
+            tabContentCache.current.set(path, diskContent);
+            useWorkspaceStore.getState().setTabDiskHash(path, newHash);
+          }
+          useWorkspaceStore.getState().setTabExternallyModified(path, false);
+
+          // Load comments
+          await loadCommentsFromFile(path);
+          if (activationIdRef.current !== myActivation) return;
+          return; // Skip the normal cache/disk loading below
+        } catch (e) {
+          console.error("Failed to reload externally modified file:", e);
+          // Fall through to normal loading
+        }
+      }
+
       // Load content: from cache if present, otherwise from disk
       if (tabContentCache.current.has(path)) {
         const content = tabContentCache.current.get(path) || "";
