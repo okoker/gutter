@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useEditorStore } from "../stores/editorStore";
 import { useSettingsStore } from "../stores/settingsStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
+import { hashContent } from "../utils/hash";
 
 export function useFileOps() {
   const {
@@ -53,13 +55,35 @@ export function useFileOps() {
   }, []);
 
   const scheduleAutoSave = useCallback(
-    (markdown: string) => {
+    (markdown: string, onComplete?: () => Promise<void>) => {
       cancelAutoSave();
-      // Read filePath from store at call time to avoid stale closures
       const filePath = useEditorStore.getState().filePath;
       if (!filePath || autoSaveInterval === 0) return;
-      autoSaveTimerRef.current = setTimeout(() => {
-        saveFile(markdown);
+      autoSaveTimerRef.current = setTimeout(async () => {
+        // Read-before-write: check if disk content matches our last known state
+        try {
+          const diskContent = await invoke<string>("read_file", { path: filePath });
+          const diskHash = hashContent(diskContent);
+          const tab = useWorkspaceStore.getState().getTab(filePath);
+
+          if (tab?.diskHash && tab.diskHash !== diskHash) {
+            // Disk diverged — skip auto-save, mark as externally modified
+            useWorkspaceStore.getState().setTabExternallyModified(filePath, true);
+            return;
+          }
+        } catch {
+          // File doesn't exist — skip auto-save
+          return;
+        }
+
+        await saveFile(markdown);
+        // Update disk hash after successful auto-save
+        useWorkspaceStore.getState().setTabDiskHash(filePath, hashContent(markdown));
+        // Clear tab dirty state (unifying with editorStore.isDirty which saveFile already cleared)
+        useWorkspaceStore.getState().setTabDirty(filePath, false);
+
+        // Also save comments and companion if callback provided
+        if (onComplete) await onComplete();
       }, autoSaveInterval);
     },
     [saveFile, autoSaveInterval, cancelAutoSave],

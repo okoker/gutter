@@ -39,7 +39,7 @@ const defaults: Settings = {
   theme: "light",
   fontSize: 16,
   fontFamily: "serif",
-  autoSaveInterval: 2000,
+  autoSaveInterval: 0,
   panelWidths: { fileTree: 224, comments: 288, history: 288, tags: 288 },
   recentFiles: [],
   spellCheckEnabled: false,

@@ -32,7 +32,7 @@ export function useTabLifecycle(
   const activationIdRef = useRef(0);
 
   const { openFile, scheduleAutoSave, cancelAutoSave } = useFileOps();
-  const { loadCommentsFromFile } = useComments();
+  const { loadCommentsFromFile, saveComments, generateCompanion } = useComments();
 
   const setContent = useEditorStore((s) => s.setContent);
   const setContentClean = useEditorStore((s) => s.setContentClean);
@@ -62,9 +62,12 @@ export function useTabLifecycle(
       setContent(markdown);
       const activeTab = useWorkspaceStore.getState().activeTabPath;
       if (activeTab) setTabDirty(activeTab, true);
-      scheduleAutoSave(markdown);
+      scheduleAutoSave(markdown, async () => {
+        await saveComments();
+        await generateCompanion(markdown);
+      });
     },
-    [setContent, setTabDirty, scheduleAutoSave, markdownRef],
+    [setContent, setTabDirty, scheduleAutoSave, saveComments, generateCompanion, markdownRef],
   );
 
   // Source mode content sync
@@ -74,9 +77,12 @@ export function useTabLifecycle(
       setContent(value);
       const activeTab = useWorkspaceStore.getState().activeTabPath;
       if (activeTab) setTabDirty(activeTab, true);
-      scheduleAutoSave(value);
+      scheduleAutoSave(value, async () => {
+        await saveComments();
+        await generateCompanion(value);
+      });
     },
-    [setContent, setTabDirty, scheduleAutoSave, markdownRef],
+    [setContent, setTabDirty, scheduleAutoSave, saveComments, generateCompanion, markdownRef],
   );
 
   // Switch to source mode
