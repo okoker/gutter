@@ -10,7 +10,7 @@ import { useSyncedNodeState } from "../../../hooks/useSyncedNodeState";
 mermaid.initialize({
   startOnLoad: false,
   theme: "default",
-  securityLevel: "loose",
+  securityLevel: "strict",
 });
 
 let mermaidCounter = 0;

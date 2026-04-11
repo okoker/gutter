@@ -152,6 +152,13 @@ fn templates_dir() -> Result<std::path::PathBuf, String> {
     Ok(home.join(".gutter").join("templates"))
 }
 
+fn validate_template_name(name: &str) -> Result<(), String> {
+    if name.contains('/') || name.contains('\\') || name.contains("..") || name.is_empty() {
+        return Err("Invalid template name".to_string());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn init_default_templates() -> Result<(), String> {
     let dir = templates_dir()?;
@@ -191,12 +198,14 @@ pub fn list_templates() -> Result<Vec<String>, String> {
 
 #[tauri::command]
 pub fn read_template(name: String) -> Result<String, String> {
+    validate_template_name(&name)?;
     let file_path = templates_dir()?.join(format!("{}.md", name));
     fs::read_to_string(&file_path).map_err(|e| format!("Failed to read template: {}", e))
 }
 
 #[tauri::command]
 pub fn save_template(name: String, content: String) -> Result<(), String> {
+    validate_template_name(&name)?;
     let dir = templates_dir()?;
     if !dir.exists() {
         fs::create_dir_all(&dir)
@@ -208,6 +217,7 @@ pub fn save_template(name: String, content: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn delete_template(name: String) -> Result<(), String> {
+    validate_template_name(&name)?;
     let file_path = templates_dir()?.join(format!("{}.md", name));
     if file_path.exists() {
         fs::remove_file(&file_path).map_err(|e| format!("Failed to delete template: {}", e))

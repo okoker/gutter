@@ -120,6 +120,11 @@ pub fn copy_image(source: String, dir_path: String, filename: String) -> Result<
 
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), String> {
+    // Only allow http/https URLs to prevent command injection and file:// access
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Only http and https URLs are allowed".to_string());
+    }
+
     #[cfg(target_os = "macos")]
     Command::new("open")
         .arg(&url)
@@ -135,8 +140,9 @@ pub fn open_url(url: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        Command::new("cmd")
-            .args(["/c", "start", &url])
+        // Use explorer.exe instead of cmd /c start to avoid shell metacharacter injection
+        Command::new("explorer")
+            .arg(&url)
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .spawn()
             .map_err(|e| format!("Failed to open URL: {}", e))?;
