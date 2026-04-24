@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, memo, useMemo } from "react";
-import { useWorkspaceStore, type FileEntry } from "../../stores/workspaceStore";
+import { useWorkspaceStore, type FileEntry, type WorkspaceRoot } from "../../stores/workspaceStore";
 import { useTagStore, getFilesForTags } from "../../stores/tagStore";
 import { useToastStore } from "../../stores/toastStore";
 import { open, ask } from "@tauri-apps/plugin-dialog";
@@ -58,7 +58,12 @@ interface FileTreeProps {
 }
 
 export function FileTree({ onFileOpen }: FileTreeProps) {
+  // fileTree here is the active-root mirror (compat); multi-select and keyboard
+  // flatten operations stay scoped to the active root for MVP.
   const { fileTree, workspacePath, loadFileTree } = useWorkspaceStore();
+  const roots = useWorkspaceStore((s) => s.roots);
+  const activeRootPath = useWorkspaceStore((s) => s.activeRootPath);
+  const setRootExpanded = useWorkspaceStore((s) => s.setRootExpanded);
   const selectedTags = useTagStore((s) => s.selectedTags);
   const filterMode = useTagStore((s) => s.filterMode);
   const tagToFiles = useTagStore((s) => s.tagToFiles);
@@ -390,6 +395,17 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
     setDrag(d);
   }, []);
 
+  // Root-header context menu (real menu items added in a follow-up commit).
+  const handleRootContextMenu = useCallback(
+    (_root: WorkspaceRoot, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Placeholder: populated with "Close Folder" in the next commit.
+      setContextMenu({ x: e.clientX, y: e.clientY, items: [] });
+    },
+    [],
+  );
+
   const rootContextItems: ContextMenuItem[] = workspacePath
     ? [
         {
@@ -502,47 +518,60 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
         </div>
       )}
       <div className="flex-1 overflow-auto py-1">
-        {!workspacePath && (
+        {roots.length === 0 && (
           <div className="px-3 py-8 text-center text-[var(--text-muted)] text-[13px]">
             No folder open
           </div>
         )}
-        {fileTree.filter((entry) => !tagFilterFiles || hasMatchingDescendant(entry, tagFilterFiles)).map((entry) => (
-          <FileTreeNode
-            key={entry.path}
-            entry={entry}
-            depth={0}
-            onFileOpen={onFileOpen}
-            onFileClick={handleFileClick}
-            selectedPaths={selectedPaths}
-            onBulkDelete={handleBulkDelete}
-            onFolderClick={() => {
-              const next = new Set<string>();
-              setSelectedPaths(next);
-              selectedPathsRef.current = next;
-            }}
-            expandedPathsRef={expandedPathsRef}
-            onCreateFile={handleCreateFile}
-            onCreateFolder={handleCreateFolder}
-            onDelete={handleDeletePath}
-            onRename={handleRename}
-            setContextMenu={setContextMenu}
-            onDragStart={startDrag}
-            dragSourcePath={drag?.started ? drag.sourcePath : null}
-            dropTarget={dropTarget}
-            tagFilterFiles={isTagFiltering ? tagFilterFiles : null}
-          />
-        ))}
+        {roots.map((root) => (
+          <RootSection
+            key={root.path}
+            root={root}
+            isActive={root.path === activeRootPath}
+            onToggleExpand={() => setRootExpanded(root.path, !root.expanded)}
+            onContextMenu={(e) => handleRootContextMenu(root, e)}
+          >
+            {root.expanded &&
+              root.tree
+                .filter((entry) => !tagFilterFiles || hasMatchingDescendant(entry, tagFilterFiles))
+                .map((entry) => (
+                  <FileTreeNode
+                    key={entry.path}
+                    entry={entry}
+                    depth={0}
+                    onFileOpen={onFileOpen}
+                    onFileClick={handleFileClick}
+                    selectedPaths={selectedPaths}
+                    onBulkDelete={handleBulkDelete}
+                    onFolderClick={() => {
+                      const next = new Set<string>();
+                      setSelectedPaths(next);
+                      selectedPathsRef.current = next;
+                    }}
+                    expandedPathsRef={expandedPathsRef}
+                    onCreateFile={handleCreateFile}
+                    onCreateFolder={handleCreateFolder}
+                    onDelete={handleDeletePath}
+                    onRename={handleRename}
+                    setContextMenu={setContextMenu}
+                    onDragStart={startDrag}
+                    dragSourcePath={drag?.started ? drag.sourcePath : null}
+                    dropTarget={dropTarget}
+                    tagFilterFiles={isTagFiltering ? tagFilterFiles : null}
+                  />
+                ))}
 
-        {/* Inline create input at root level */}
-        {creatingIn && creatingIn.parentPath === workspacePath && (
-          <InlineCreateInput
-            type={creatingIn.type}
-            depth={0}
-            onSubmit={handleCreateSubmit}
-            onCancel={() => setCreatingIn(null)}
-          />
-        )}
+            {/* Inline create input at this root's top level */}
+            {root.expanded && creatingIn && creatingIn.parentPath === root.path && (
+              <InlineCreateInput
+                type={creatingIn.type}
+                depth={0}
+                onSubmit={handleCreateSubmit}
+                onCancel={() => setCreatingIn(null)}
+              />
+            )}
+          </RootSection>
+        ))}
       </div>
 
       {/* Drag label floating near cursor */}
@@ -923,6 +952,43 @@ const FileTreeNode = memo(function FileTreeNode({
     </div>
   );
 });
+
+function RootSection({
+  root,
+  isActive,
+  onToggleExpand,
+  onContextMenu,
+  children,
+}: {
+  root: WorkspaceRoot;
+  isActive: boolean;
+  onToggleExpand: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div
+        className={`relative flex items-center gap-1 px-3 py-[5px] cursor-pointer select-none text-[11px] uppercase tracking-wider transition-colors ${
+          isActive
+            ? "font-bold text-[var(--text-primary)]"
+            : "font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+        }`}
+        onClick={onToggleExpand}
+        onContextMenu={onContextMenu}
+        title={root.path}
+      >
+        <span
+          className={`shrink-0 transition-transform duration-150 ${root.expanded ? "" : "-rotate-90"}`}
+        >
+          <ChevronDown size={12} />
+        </span>
+        <span className="truncate">{root.name}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 function RenameInput({
   initialName,
