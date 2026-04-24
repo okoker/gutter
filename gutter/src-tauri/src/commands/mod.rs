@@ -7,3 +7,4 @@ pub mod export;
 pub mod search;
 pub mod templates;
 pub mod history;
+pub mod snippets;

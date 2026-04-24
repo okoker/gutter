@@ -84,6 +84,12 @@ pub fn run() {
             commands::history::delete_snapshot,
             commands::history::list_git_history,
             commands::history::read_git_version,
+            commands::snippets::ensure_snippets_dir,
+            commands::snippets::list_snippets,
+            commands::snippets::read_snippet,
+            commands::snippets::save_snippet,
+            commands::snippets::delete_snippet,
+            commands::snippets::rename_snippet,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
