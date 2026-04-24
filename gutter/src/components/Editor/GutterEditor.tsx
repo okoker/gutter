@@ -577,6 +577,65 @@ export const GutterEditor = forwardRef<GutterEditorHandle, GutterEditorProps>(
           },
         );
 
+        // Snippets — save selection / insert from library
+        items.push({ label: "", action: () => {}, separator: true });
+
+        if (hasSelection) {
+          // Detect atom nodes (Mermaid, math) in the selection — textBetween
+          // silently drops their content. Offer a disabled hint in that case.
+          let hasAtom = false;
+          editor.state.doc.nodesBetween(from, to, (node) => {
+            if (node.isAtom) {
+              hasAtom = true;
+              return false;
+            }
+            return true;
+          });
+
+          if (hasAtom) {
+            items.push({
+              label: "Save Selection as Snippet (contains diagram — switch to source mode)",
+              action: async () => {
+                const { useToastStore } = await import("../../stores/toastStore");
+                useToastStore
+                  .getState()
+                  .addToast(
+                    "Selection contains an atom node (diagram/math). Switch to source mode to save as text.",
+                    "info",
+                    3000,
+                  );
+              },
+            });
+          } else {
+            items.push({
+              label: "Save Selection as Snippet",
+              action: async () => {
+                const text = editor.state.doc.textBetween(from, to, "\n\n");
+                const raw = window.prompt("Snippet filename:", "untitled.md");
+                if (!raw) return;
+                const name = raw.includes(".") ? raw : `${raw}.md`;
+                const { useSnippetStore } = await import("../../stores/snippetStore");
+                const { useToastStore } = await import("../../stores/toastStore");
+                try {
+                  await useSnippetStore.getState().saveNewSnippet(name, text);
+                  useToastStore.getState().addToast("Snippet saved", "success", 1500);
+                } catch (err) {
+                  useToastStore
+                    .getState()
+                    .addToast(`Save failed: ${err}`, "error");
+                }
+              },
+            });
+          }
+        }
+
+        items.push({
+          label: "Insert Snippet...",
+          action: () => {
+            window.dispatchEvent(new CustomEvent("open-snippet-picker"));
+          },
+        });
+
         setContextMenu({ x: e.clientX, y: e.clientY, items });
       },
       [editor],

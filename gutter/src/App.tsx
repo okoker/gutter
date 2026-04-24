@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GutterEditor } from "./components/Editor/GutterEditor";
 import { SourceEditor } from "./components/Editor/SourceEditor";
 import { ReadingMode } from "./components/ReadingMode";
@@ -6,6 +6,7 @@ import { FileTree } from "./components/FileTree/FileTree";
 import { CommentsPanel } from "./components/Comments/CommentsPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { SnippetsPanel } from "./components/SnippetsPanel";
+import { SnippetPicker } from "./components/SnippetPicker";
 import { parseMarkdown } from "./components/Editor/markdown/parser";
 import { TagBrowser } from "./components/TagBrowser";
 import { TagBar } from "./components/TagBar";
@@ -66,6 +67,7 @@ function App() {
   const { setTabDirty, openTabs, activeTabPath } = useWorkspaceStore();
 
   const [unifiedSearchMode, setUnifiedSearchMode] = useState<"all" | "files" | "commands" | null>(null);
+  const [showSnippetPicker, setShowSnippetPicker] = useState(false);
   const [findReplaceMode, setFindReplaceMode] = useState<"find" | "replace" | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
@@ -151,6 +153,13 @@ function App() {
 
   // Multi-root workspace persistence: restore on launch + sync on change
   useWorkspacePersistence();
+
+  // Open the snippet picker when the editor's right-click menu requests it
+  useEffect(() => {
+    const handler = () => setShowSnippetPicker(true);
+    window.addEventListener("open-snippet-picker", handler);
+    return () => window.removeEventListener("open-snippet-picker", handler);
+  }, []);
 
   // Shared insertion helper for the Snippets panel and picker.
   // Markdown files parse + insert after the current block ($to.after()) so
@@ -447,6 +456,12 @@ function App() {
           filterMode={unifiedSearchMode}
         />
       )}
+
+      <SnippetPicker
+        open={showSnippetPicker}
+        onClose={() => setShowSnippetPicker(false)}
+        onInsert={handleSnippetInsert}
+      />
 
       <ToastContainer />
     </div>
