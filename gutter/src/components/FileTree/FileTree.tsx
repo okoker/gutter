@@ -395,15 +395,25 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
     setDrag(d);
   }, []);
 
-  // Root-header context menu (real menu items added in a follow-up commit).
+  // Root-header context menu. Close Folder removes the root from the workspace;
+  // open tabs from that root remain (paths are absolute). Files on disk untouched.
+  const removeRoot = useWorkspaceStore((s) => s.removeRoot);
   const handleRootContextMenu = useCallback(
-    (_root: WorkspaceRoot, e: React.MouseEvent) => {
+    (root: WorkspaceRoot, e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      // Placeholder: populated with "Close Folder" in the next commit.
-      setContextMenu({ x: e.clientX, y: e.clientY, items: [] });
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        items: [
+          {
+            label: "Close Folder",
+            action: () => removeRoot(root.path),
+          },
+        ],
+      });
     },
-    [],
+    [removeRoot],
   );
 
   const rootContextItems: ContextMenuItem[] = workspacePath
