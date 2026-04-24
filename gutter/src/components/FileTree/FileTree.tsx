@@ -22,13 +22,13 @@ import {
 /** Flatten visible (expanded) file entries in display order — files only */
 function flattenVisibleFiles(
   entries: FileEntry[],
-  expandedPaths: Set<string>,
+  expandedPaths: Map<string, boolean>,
 ): string[] {
   const result: string[] = [];
   const walk = (items: FileEntry[]) => {
     for (const entry of items) {
       if (entry.is_dir) {
-        if (expandedPaths.has(entry.path) && entry.children) {
+        if (expandedPaths.get(entry.path) === true && entry.children) {
           walk(entry.children);
         }
       } else {
@@ -81,7 +81,9 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const selectedPathsRef = useRef<Set<string>>(new Set());
   const lastClickedPath = useRef<string | null>(null);
-  const expandedPathsRef = useRef<Set<string>>(new Set());
+  // Persist per-path expanded state across unmount (e.g. when a root collapses
+  // and its children unmount then remount). Map<path, expanded>.
+  const expandedPathsRef = useRef<Map<string, boolean>>(new Map());
 
   // Keep ref in sync
   useEffect(() => {
@@ -662,7 +664,7 @@ const FileTreeNode = memo(function FileTreeNode({
   selectedPaths: Set<string>;
   onBulkDelete: (paths: Set<string>) => void;
   onFolderClick: () => void;
-  expandedPathsRef: React.MutableRefObject<Set<string>>;
+  expandedPathsRef: React.MutableRefObject<Map<string, boolean>>;
   onCreateFile: (parentPath: string) => void;
   onCreateFolder: (parentPath: string) => void;
   onDelete: (path: string) => void;
@@ -675,7 +677,14 @@ const FileTreeNode = memo(function FileTreeNode({
   dropTarget: string | null;
   tagFilterFiles: Set<string> | null;
 }) {
-  const [expanded, setExpanded] = useState(depth < 1);
+  // Initial expanded state: if we've seen this folder before (e.g. mounting
+  // after a root collapse/expand), restore the last value. Otherwise default:
+  // depth-0 expanded, deeper collapsed.
+  const [expanded, setExpanded] = useState(() => {
+    if (!entry.is_dir) return false;
+    const prior = expandedPathsRef.current.get(entry.path);
+    return prior !== undefined ? prior : depth < 1;
+  });
   const [renaming, setRenaming] = useState(false);
   const [creating, setCreating] = useState<"file" | "folder" | null>(null);
   const isMd = entry.name.endsWith(".md") || entry.name.endsWith(".markdown");
@@ -685,14 +694,10 @@ const FileTreeNode = memo(function FileTreeNode({
   const isDragSource = dragSourcePath === entry.path;
   const isDropTarget = dropTarget === entry.path && entry.is_dir;
 
-  // Track expanded state for flattenVisibleFiles
+  // Record expanded state on every change so remounts can restore it.
   useEffect(() => {
     if (entry.is_dir) {
-      if (expanded) {
-        expandedPathsRef.current.add(entry.path);
-      } else {
-        expandedPathsRef.current.delete(entry.path);
-      }
+      expandedPathsRef.current.set(entry.path, expanded);
     }
   }, [expanded, entry.is_dir, entry.path, expandedPathsRef]);
 
