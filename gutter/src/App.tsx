@@ -350,6 +350,17 @@ function App() {
               <WelcomeScreen
                 onNewFile={handleNewFile}
                 onOpenFile={handleOpenFile}
+                onOpenFolder={async () => {
+                  const { open } = await import("@tauri-apps/plugin-dialog");
+                  const selected = await open({ directory: true });
+                  if (!selected) return;
+                  const path = typeof selected === "string" ? selected : (selected as { path: string }).path;
+                  try {
+                    await useWorkspaceStore.getState().addRoot(path);
+                  } catch (e) {
+                    console.error("WelcomeScreen open folder failed:", e);
+                  }
+                }}
                 onOpenRecent={handleFileTreeOpen}
               />
             ) : isReadingMode ? (
