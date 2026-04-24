@@ -31,8 +31,16 @@ interface WorkspaceState {
   activeRootPath: string | null;
 
   // Backward-compat mirrors — kept in sync by every roots-mutating action via
-  // computeCompat(). Deprecated but still consumed by 20+ call sites. Cross-root
-  // enumeration deferred to Feature #3.5.
+  // computeCompat(). Deprecated but still consumed by 20+ call sites.
+  //
+  // fileTree returns the ACTIVE root's tree only (not a flat concat of all
+  // roots). JS consumers that iterate fileTree — wiki-link resolution
+  // (WikiLink.ts, LinkReveal.ts, useTabLifecycle.ts), image resolution
+  // (ImageBlock.tsx, parser.ts), wiki-link autocomplete
+  // (WikiLinkAutocomplete.ts), unified search (UnifiedSearch.tsx) — therefore
+  // see only the active root. Cross-root enumeration is deferred to
+  // Feature #3.5. Known MVP quirk: editing a tab from a non-active root means
+  // wiki-links resolve against the active root's tree, not the tab's own root.
   workspacePath: string | null;
   fileTree: FileEntry[];
 
