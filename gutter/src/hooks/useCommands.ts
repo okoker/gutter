@@ -49,6 +49,16 @@ export function useCommands(deps: CommandDeps): Command[] {
       { name: "New File", shortcut: `${mod}+N`, action: deps.handleNewFile },
       { name: "Search", shortcut: `${mod}+K`, action: () => deps.setUnifiedSearchMode("all") },
       { name: "Open File", shortcut: `${mod}+O`, action: deps.handleOpenFile },
+      { name: "Add Folder to Workspace", action: async () => {
+        const selected = await open({ directory: true });
+        if (!selected) return;
+        const path = typeof selected === "string" ? selected : (selected as { path: string }).path;
+        try {
+          await useWorkspaceStore.getState().addRoot(path);
+        } catch (e) {
+          console.error("addRoot from command palette failed:", e);
+        }
+      }},
       { name: "Save File", shortcut: `${mod}+S`, action: deps.handleSave },
       { name: "Toggle Source Mode", shortcut: `${mod}+/`, action: isSourceMode ? deps.switchToWysiwyg : deps.switchToSource },
       { name: "Toggle Reading Mode", shortcut: `${mod}+Shift+R`, action: () => {

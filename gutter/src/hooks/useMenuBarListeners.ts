@@ -45,6 +45,16 @@ export function useMenuBarListeners(actions: MenuBarActions) {
           await loadFileTree(path);
         }
       }),
+      listen("menu:add-folder", async () => {
+        const selected = await open({ directory: true });
+        if (!selected) return;
+        const path = typeof selected === "string" ? selected : (selected as { path: string }).path;
+        try {
+          await useWorkspaceStore.getState().addRoot(path);
+        } catch (e) {
+          console.error("addRoot from menu failed:", e);
+        }
+      }),
       listen("menu:save", () => actions.handleSave()),
       listen("menu:export", () => actions.setShowExport(true)),
       listen("menu:preferences", () => actions.setShowPreferences(true)),
