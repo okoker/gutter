@@ -7,6 +7,8 @@ import { CommentsPanel } from "./components/Comments/CommentsPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { SnippetsPanel } from "./components/SnippetsPanel";
 import { SnippetPicker } from "./components/SnippetPicker";
+import { SnippetNamePrompt } from "./components/SnippetNamePrompt";
+import { useSnippetStore } from "./stores/snippetStore";
 import { parentDir, joinPath } from "./utils/path";
 import { parseMarkdown } from "./components/Editor/markdown/parser";
 import { TagBrowser } from "./components/TagBrowser";
@@ -69,6 +71,7 @@ function App() {
 
   const [unifiedSearchMode, setUnifiedSearchMode] = useState<"all" | "files" | "commands" | null>(null);
   const [showSnippetPicker, setShowSnippetPicker] = useState(false);
+  const [snippetNameText, setSnippetNameText] = useState<string | null>(null);
   const [findReplaceMode, setFindReplaceMode] = useState<"find" | "replace" | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
@@ -160,6 +163,17 @@ function App() {
     const handler = () => setShowSnippetPicker(true);
     window.addEventListener("open-snippet-picker", handler);
     return () => window.removeEventListener("open-snippet-picker", handler);
+  }, []);
+
+  // Save-selection-as-snippet: editor dispatches with the selection text;
+  // open the filename prompt modal.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { text } = (e as CustomEvent).detail as { text: string };
+      setSnippetNameText(text);
+    };
+    window.addEventListener("save-selection-as-snippet", handler);
+    return () => window.removeEventListener("save-selection-as-snippet", handler);
   }, []);
 
   // Update any open tab whose path points at a snippet that was just renamed.
@@ -483,6 +497,22 @@ function App() {
         open={showSnippetPicker}
         onClose={() => setShowSnippetPicker(false)}
         onInsert={handleSnippetInsert}
+      />
+
+      <SnippetNamePrompt
+        open={snippetNameText !== null}
+        onCancel={() => setSnippetNameText(null)}
+        onSave={async (rawName) => {
+          const text = snippetNameText ?? "";
+          const name = rawName.includes(".") ? rawName : `${rawName}.md`;
+          try {
+            await useSnippetStore.getState().saveNewSnippet(name, text);
+            useToastStore.getState().addToast("Snippet saved", "success", 1500);
+          } catch (err) {
+            useToastStore.getState().addToast(`Save failed: ${err}`, "error");
+          }
+          setSnippetNameText(null);
+        }}
       />
 
       <ToastContainer />

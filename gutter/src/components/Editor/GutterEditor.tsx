@@ -617,21 +617,15 @@ export const GutterEditor = forwardRef<GutterEditorHandle, GutterEditorProps>(
           } else {
             items.push({
               label: "Save Selection as Snippet",
-              action: async () => {
+              action: () => {
                 const text = editor.state.doc.textBetween(from, to, "\n\n");
-                const raw = window.prompt("Snippet filename:", "untitled.md");
-                if (!raw) return;
-                const name = raw.includes(".") ? raw : `${raw}.md`;
-                const { useSnippetStore } = await import("../../stores/snippetStore");
-                const { useToastStore } = await import("../../stores/toastStore");
-                try {
-                  await useSnippetStore.getState().saveNewSnippet(name, text);
-                  useToastStore.getState().addToast("Snippet saved", "success", 1500);
-                } catch (err) {
-                  useToastStore
-                    .getState()
-                    .addToast(`Save failed: ${err}`, "error");
-                }
+                // window.prompt is disabled in the Tauri webview; dispatch an
+                // event for App.tsx to show a custom filename prompt modal.
+                window.dispatchEvent(
+                  new CustomEvent("save-selection-as-snippet", {
+                    detail: { text },
+                  }),
+                );
               },
             });
           }
