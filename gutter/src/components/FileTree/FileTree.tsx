@@ -1013,7 +1013,7 @@ function RootSection({
   );
 }
 
-function RenameInput({
+export function RenameInput({
   initialName,
   onSubmit,
   onCancel,

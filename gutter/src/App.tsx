@@ -1,10 +1,12 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { GutterEditor } from "./components/Editor/GutterEditor";
 import { SourceEditor } from "./components/Editor/SourceEditor";
 import { ReadingMode } from "./components/ReadingMode";
 import { FileTree } from "./components/FileTree/FileTree";
 import { CommentsPanel } from "./components/Comments/CommentsPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
+import { SnippetsPanel } from "./components/SnippetsPanel";
+import { parseMarkdown } from "./components/Editor/markdown/parser";
 import { TagBrowser } from "./components/TagBrowser";
 import { TagBar } from "./components/TagBar";
 import { VersionPreview } from "./components/VersionPreview";
@@ -43,11 +45,13 @@ function App() {
     showComments,
     showHistory,
     showTags,
+    showSnippets,
     toggleReadingMode,
     toggleFileTree,
     toggleComments,
     toggleHistory,
     toggleTags,
+    toggleSnippets,
     showOutline,
     toggleOutline,
     setContent,
@@ -147,6 +151,31 @@ function App() {
 
   // Multi-root workspace persistence: restore on launch + sync on change
   useWorkspacePersistence();
+
+  // Shared insertion helper for the Snippets panel and picker.
+  // Markdown files parse + insert after the current block ($to.after()) so
+  // multi-block snippets don't produce an invalid schema; plain text inserts
+  // as a text node with no parsing.
+  const handleSnippetInsert = useCallback(
+    (content: string, isMarkdown: boolean) => {
+      const editor = editorInstanceRef.current?.getEditor();
+      if (!editor) {
+        navigator.clipboard.writeText(content).catch(console.error);
+        useToastStore
+          .getState()
+          .addToast("No active editor — copied to clipboard", "info", 2000);
+        return;
+      }
+      if (isMarkdown) {
+        const parsed = parseMarkdown(content, "");
+        const insertPos = editor.state.selection.$to.after();
+        editor.chain().focus().insertContentAt(insertPos, parsed).run();
+      } else {
+        editor.chain().focus().insertContent({ type: "text", text: content }).run();
+      }
+    },
+    [],
+  );
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[var(--editor-bg)] text-[var(--editor-text)] transition-colors">
@@ -356,6 +385,29 @@ function App() {
               style={{ width: panelWidths.tags }}
             >
               <TagBrowser />
+            </aside>
+          </>
+        )}
+
+        {showSnippets && !isReadingMode && (
+          <>
+            <ResizeHandle
+              side="right"
+              currentWidth={panelWidths.snippets}
+              minWidth={220}
+              maxWidth={Math.floor(window.innerWidth * 0.5)}
+              onResize={(w) => setPanelWidth("snippets", w)}
+              onDoubleClick={() => setPanelWidth("snippets", 288)}
+            />
+            <aside
+              className="border-l border-[var(--editor-border)] shrink-0 overflow-auto sidebar-panel"
+              style={{ width: panelWidths.snippets }}
+            >
+              <SnippetsPanel
+                onClose={toggleSnippets}
+                onInsert={handleSnippetInsert}
+                onOpenAsTab={handleFileTreeOpen}
+              />
             </aside>
           </>
         )}
