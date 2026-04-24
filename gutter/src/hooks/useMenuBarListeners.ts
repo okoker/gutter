@@ -32,12 +32,12 @@ export interface MenuBarActions {
  * Listens for native menu bar events from Tauri and dispatches to actions.
  */
 export function useMenuBarListeners(actions: MenuBarActions) {
-  const loadFileTree = useWorkspaceStore((s) => s.loadFileTree);
-
+  // Workspace-root listeners attach once with stable deps. They read the
+  // workspace store via getState() and don't depend on `actions`, so they
+  // must NOT re-register on every render — otherwise multiple copies stack
+  // up and a single menu click fires N dialogs in sequence.
   useEffect(() => {
     const unlisteners = [
-      listen("menu:new-file", () => actions.handleNewFile()),
-      listen("menu:open", () => actions.handleOpenFile()),
       listen("menu:open-folder", async () => {
         const { roots } = useWorkspaceStore.getState();
         if (roots.length > 0) {
@@ -68,6 +68,16 @@ export function useMenuBarListeners(actions: MenuBarActions) {
           console.error("addRoot from menu failed:", e);
         }
       }),
+    ];
+    return () => {
+      unlisteners.forEach((p) => p.then((fn) => fn()));
+    };
+  }, []);
+
+  useEffect(() => {
+    const unlisteners = [
+      listen("menu:new-file", () => actions.handleNewFile()),
+      listen("menu:open", () => actions.handleOpenFile()),
       listen("menu:save", () => actions.handleSave()),
       listen("menu:export", () => actions.setShowExport(true)),
       listen("menu:preferences", () => actions.setShowPreferences(true)),
@@ -118,5 +128,5 @@ export function useMenuBarListeners(actions: MenuBarActions) {
     return () => {
       unlisteners.forEach((p) => p.then((fn) => fn()));
     };
-  }, [actions, loadFileTree]);
+  }, [actions]);
 }
