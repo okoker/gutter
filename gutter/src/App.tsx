@@ -7,6 +7,7 @@ import { CommentsPanel } from "./components/Comments/CommentsPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { SnippetsPanel } from "./components/SnippetsPanel";
 import { SnippetPicker } from "./components/SnippetPicker";
+import { parentDir, joinPath } from "./utils/path";
 import { parseMarkdown } from "./components/Editor/markdown/parser";
 import { TagBrowser } from "./components/TagBrowser";
 import { TagBar } from "./components/TagBar";
@@ -159,6 +160,27 @@ function App() {
     const handler = () => setShowSnippetPicker(true);
     window.addEventListener("open-snippet-picker", handler);
     return () => window.removeEventListener("open-snippet-picker", handler);
+  }, []);
+
+  // Update any open tab whose path points at a snippet that was just renamed.
+  // Uses parentDir/joinPath (cross-platform) instead of a POSIX-only regex.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { oldPath, newFilename } = (e as CustomEvent).detail as {
+        oldPath: string;
+        newFilename: string;
+      };
+      const { openTabs } = useWorkspaceStore.getState();
+      const tab = openTabs.find((t) => t.path === oldPath);
+      if (!tab) return;
+      const newPath = joinPath(parentDir(oldPath) ?? "", newFilename);
+      useWorkspaceStore.getState().updateTabPath(oldPath, newPath, newFilename);
+      if (useEditorStore.getState().filePath === oldPath) {
+        useEditorStore.getState().setFilePath(newPath);
+      }
+    };
+    window.addEventListener("snippet-renamed", handler);
+    return () => window.removeEventListener("snippet-renamed", handler);
   }, []);
 
   // Shared insertion helper for the Snippets panel and picker.
