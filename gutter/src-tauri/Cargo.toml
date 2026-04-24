@@ -23,7 +23,7 @@ tauri = { version = "2.10.0", features = ["protocol-asset", "devtools"] }
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
-notify = { version = "7", features = ["macos_kqueue"] }
+notify = "7"
 dirs = "5"
 url = "2"
 tauri-plugin-single-instance = "2"
