@@ -62,7 +62,6 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
   // flatten operations stay scoped to the active root for MVP.
   const { fileTree, workspacePath, loadFileTree } = useWorkspaceStore();
   const roots = useWorkspaceStore((s) => s.roots);
-  const activeRootPath = useWorkspaceStore((s) => s.activeRootPath);
   const setRootExpanded = useWorkspaceStore((s) => s.setRootExpanded);
   const selectedTags = useTagStore((s) => s.selectedTags);
   const filterMode = useTagStore((s) => s.filterMode);
@@ -552,7 +551,6 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
           <RootSection
             key={root.path}
             root={root}
-            isActive={root.path === activeRootPath}
             onToggleExpand={() => setRootExpanded(root.path, !root.expanded)}
             onContextMenu={(e) => handleRootContextMenu(root, e)}
           >
@@ -983,13 +981,11 @@ const FileTreeNode = memo(function FileTreeNode({
 
 function RootSection({
   root,
-  isActive,
   onToggleExpand,
   onContextMenu,
   children,
 }: {
   root: WorkspaceRoot;
-  isActive: boolean;
   onToggleExpand: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   children: React.ReactNode;
@@ -997,11 +993,7 @@ function RootSection({
   return (
     <div>
       <div
-        className={`relative flex items-center gap-1 px-3 py-[5px] cursor-pointer select-none text-[11px] uppercase tracking-wider transition-colors ${
-          isActive
-            ? "font-bold text-[var(--text-primary)]"
-            : "font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-        }`}
+        className="relative flex items-center gap-1 px-3 py-[5px] cursor-pointer select-none text-[11px] uppercase tracking-wider font-bold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
         onClick={onToggleExpand}
         onContextMenu={onContextMenu}
         title={root.path}
