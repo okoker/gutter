@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useSnippetStore, type SnippetInfo } from "../stores/snippetStore";
 import { useToastStore } from "../stores/toastStore";
@@ -30,6 +30,8 @@ export function SnippetsPanel({ onClose, onInsert, onOpenAsTab }: SnippetsPanelP
   } | null>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [creatingNew, setCreatingNew] = useState(false);
+  // Defer single-click action so a trailing double-click can cancel it.
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refresh on panel mount — picks up files added externally (e.g. via Finder)
   // without needing a dedicated refresh button.
@@ -200,10 +202,20 @@ export function SnippetsPanel({ onClose, onInsert, onOpenAsTab }: SnippetsPanelP
             snippet={s}
             isRenaming={renamingPath === s.path}
             onClick={() => {
-              if (renamingPath !== s.path) onOpenAsTab(s.path);
+              if (renamingPath === s.path) return;
+              if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+              clickTimerRef.current = setTimeout(() => {
+                clickTimerRef.current = null;
+                onOpenAsTab(s.path);
+              }, 250);
             }}
             onDoubleClick={() => {
-              if (renamingPath !== s.path) insertFromSnippet(s);
+              if (renamingPath === s.path) return;
+              if (clickTimerRef.current) {
+                clearTimeout(clickTimerRef.current);
+                clickTimerRef.current = null;
+              }
+              insertFromSnippet(s);
             }}
             onContextMenu={(e) => handleRowContextMenu(s, e)}
             onRenameSubmit={(name) => handleRenameSubmit(s.path, name)}
