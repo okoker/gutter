@@ -91,6 +91,8 @@ export function useSaveHandler(
       await generateCompanion(md);
       setTabDirty(path, false);
       useToastStore.getState().addToast("File saved", "success", 2000);
+      // Notify interested panels (e.g. SnippetsPanel) that a file on disk changed.
+      window.dispatchEvent(new CustomEvent("file-saved", { detail: { path } }));
       // Fire-and-forget snapshot for version history
       invoke("save_snapshot", { filePath: path, content: md }).catch(console.error);
       // Incrementally update tag index

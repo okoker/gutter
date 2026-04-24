@@ -37,6 +37,16 @@ export function SnippetsPanel({ onClose, onInsert, onOpenAsTab }: SnippetsPanelP
     loadSnippets();
   }, [loadSnippets]);
 
+  // Live refresh when any file is saved: picks up preview changes for a
+  // snippet tab the user is editing without requiring close+reopen.
+  useEffect(() => {
+    const handler = () => {
+      void useSnippetStore.getState().refreshSnippets();
+    };
+    window.addEventListener("file-saved", handler);
+    return () => window.removeEventListener("file-saved", handler);
+  }, []);
+
   const insertFromSnippet = useCallback(
     async (s: SnippetInfo) => {
       try {

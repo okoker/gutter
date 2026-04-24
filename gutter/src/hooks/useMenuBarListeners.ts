@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { open, ask } from "@tauri-apps/plugin-dialog";
 import { useEditorStore } from "../stores/editorStore";
@@ -31,14 +31,22 @@ export interface MenuBarActions {
 
 /**
  * Listens for native menu bar events from Tauri and dispatches to actions.
+ *
+ * Root-cause fix for the listener-stacking bug: all listeners read actions
+ * via a ref that is refreshed on every render. The useEffect has an empty
+ * dependency array so the Tauri `listen()` subscriptions are attached exactly
+ * once for the lifetime of the hook. Changing `actions` identity re-renders
+ * App but does not re-register listeners; stale closure captures are avoided
+ * by always reading `actionsRef.current.<fn>` inside each callback.
  */
 export function useMenuBarListeners(actions: MenuBarActions) {
-  // Workspace-root listeners attach once with stable deps. They read the
-  // workspace store via getState() and don't depend on `actions`, so they
-  // must NOT re-register on every render — otherwise multiple copies stack
-  // up and a single menu click fires N dialogs in sequence.
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+
   useEffect(() => {
     const unlisteners = [
+      // Workspace-root listeners — these read the workspace store directly,
+      // but living here keeps all menu listeners under one mount/unmount pair.
       listen("menu:open-folder", async () => {
         const { roots } = useWorkspaceStore.getState();
         if (roots.length > 0) {
@@ -69,45 +77,39 @@ export function useMenuBarListeners(actions: MenuBarActions) {
           console.error("addRoot from menu failed:", e);
         }
       }),
-    ];
-    return () => {
-      unlisteners.forEach((p) => p.then((fn) => fn()));
-    };
-  }, []);
 
-  useEffect(() => {
-    const unlisteners = [
-      listen("menu:new-file", () => actions.handleNewFile()),
-      listen("menu:open", () => actions.handleOpenFile()),
-      listen("menu:save", () => actions.handleSave()),
-      listen("menu:export", () => actions.setShowExport(true)),
-      listen("menu:preferences", () => actions.setShowPreferences(true)),
-      listen("menu:toggle-tree", () => actions.toggleFileTree()),
-      listen("menu:toggle-comments", () => actions.toggleComments()),
-      listen("menu:toggle-history", () => actions.toggleHistory()),
-      listen("menu:toggle-tags", () => actions.toggleTags()),
-      listen("menu:toggle-snippets", () => actions.toggleSnippets()),
-      listen("menu:toggle-outline", () => actions.toggleOutline()),
+      // Action-delegating listeners — always use actionsRef.current.
+      listen("menu:new-file", () => actionsRef.current.handleNewFile()),
+      listen("menu:open", () => actionsRef.current.handleOpenFile()),
+      listen("menu:save", () => actionsRef.current.handleSave()),
+      listen("menu:export", () => actionsRef.current.setShowExport(true)),
+      listen("menu:preferences", () => actionsRef.current.setShowPreferences(true)),
+      listen("menu:toggle-tree", () => actionsRef.current.toggleFileTree()),
+      listen("menu:toggle-comments", () => actionsRef.current.toggleComments()),
+      listen("menu:toggle-history", () => actionsRef.current.toggleHistory()),
+      listen("menu:toggle-tags", () => actionsRef.current.toggleTags()),
+      listen("menu:toggle-snippets", () => actionsRef.current.toggleSnippets()),
+      listen("menu:toggle-outline", () => actionsRef.current.toggleOutline()),
       listen("menu:toggle-source", () => {
         if (useEditorStore.getState().isSourceMode) {
-          actions.switchToWysiwyg();
+          actionsRef.current.switchToWysiwyg();
         } else {
-          actions.switchToSource();
+          actionsRef.current.switchToSource();
         }
       }),
       listen("menu:toggle-reading", () => {
         const state = useEditorStore.getState();
-        if (state.isSourceMode && !state.isReadingMode) actions.switchToWysiwyg();
-        actions.toggleReadingMode();
+        if (state.isSourceMode && !state.isReadingMode) actionsRef.current.switchToWysiwyg();
+        actionsRef.current.toggleReadingMode();
       }),
-      listen("menu:cycle-theme", () => actions.cycleTheme()),
-      listen("menu:search", () => actions.setUnifiedSearchMode("all")),
-      listen("menu:quick-open", () => actions.setUnifiedSearchMode("files")),
-      listen("menu:find", () => actions.setFindReplaceMode("find")),
-      listen("menu:replace", () => actions.setFindReplaceMode("replace")),
-      listen("menu:new-comment", () => actions.createComment()),
-      listen("menu:next-comment", () => actions.navigateComment("next")),
-      listen("menu:prev-comment", () => actions.navigateComment("prev")),
+      listen("menu:cycle-theme", () => actionsRef.current.cycleTheme()),
+      listen("menu:search", () => actionsRef.current.setUnifiedSearchMode("all")),
+      listen("menu:quick-open", () => actionsRef.current.setUnifiedSearchMode("files")),
+      listen("menu:find", () => actionsRef.current.setFindReplaceMode("find")),
+      listen("menu:replace", () => actionsRef.current.setFindReplaceMode("replace")),
+      listen("menu:new-comment", () => actionsRef.current.createComment()),
+      listen("menu:next-comment", () => actionsRef.current.navigateComment("next")),
+      listen("menu:prev-comment", () => actionsRef.current.navigateComment("prev")),
       listen("menu:new-from-template", async () => {
         const currentPath = useEditorStore.getState().filePath;
         const ws = useWorkspaceStore.getState().workspacePath;
@@ -117,18 +119,18 @@ export function useMenuBarListeners(actions: MenuBarActions) {
           if (!picked) return;
           folder = typeof picked === "string" ? picked : (picked as { path: string }).path;
         }
-        actions.setTemplatePicker({ mode: "new", targetFolder: folder });
+        actionsRef.current.setTemplatePicker({ mode: "new", targetFolder: folder });
       }),
       listen("menu:save-as-template", () => {
-        if (!actions.getMarkdown()) return;
+        if (!actionsRef.current.getMarkdown()) return;
         const currentPath = useEditorStore.getState().filePath;
         const ws = useWorkspaceStore.getState().workspacePath;
         const folder = currentPath ? parentDir(currentPath) : (ws || "");
-        actions.setTemplatePicker({ mode: "save", targetFolder: folder });
+        actionsRef.current.setTemplatePicker({ mode: "save", targetFolder: folder });
       }),
     ];
     return () => {
       unlisteners.forEach((p) => p.then((fn) => fn()));
     };
-  }, [actions]);
+  }, []);
 }
