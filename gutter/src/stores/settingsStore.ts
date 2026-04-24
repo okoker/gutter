@@ -6,7 +6,7 @@ interface Settings {
   fontSize: number;
   fontFamily: "serif" | "sans" | "mono";
   autoSaveInterval: number;
-  panelWidths: { fileTree: number; comments: number; history: number; tags: number };
+  panelWidths: { fileTree: number; comments: number; history: number; tags: number; snippets: number };
   recentFiles: string[];
   spellCheckEnabled: boolean;
   defaultAuthor: string;
@@ -28,7 +28,7 @@ interface SettingsState extends Settings {
   setFontSize: (size: number) => void;
   setFontFamily: (family: "serif" | "sans" | "mono") => void;
   setAutoSaveInterval: (ms: number) => void;
-  setPanelWidth: (panel: "fileTree" | "comments" | "history" | "tags", width: number) => void;
+  setPanelWidth: (panel: "fileTree" | "comments" | "history" | "tags" | "snippets", width: number) => void;
   addRecentFile: (path: string) => void;
   setSpellCheckEnabled: (enabled: boolean) => void;
   setDefaultAuthor: (author: string) => void;
@@ -46,7 +46,7 @@ const defaults: Settings = {
   fontSize: 16,
   fontFamily: "serif",
   autoSaveInterval: 0,
-  panelWidths: { fileTree: 224, comments: 288, history: 288, tags: 288 },
+  panelWidths: { fileTree: 224, comments: 288, history: 288, tags: 288, snippets: 288 },
   recentFiles: [],
   spellCheckEnabled: false,
   defaultAuthor: "Author",

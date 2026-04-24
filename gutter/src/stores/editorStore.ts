@@ -20,6 +20,7 @@ interface EditorState {
   contentVersion: number;
   showHistory: boolean;
   showTags: boolean;
+  showSnippets: boolean;
 
   setFilePath: (path: string | null) => void;
   setContent: (content: string) => void;
@@ -34,6 +35,7 @@ interface EditorState {
   toggleComments: () => void;
   toggleHistory: () => void;
   toggleTags: () => void;
+  toggleSnippets: () => void;
   setActiveCommentId: (id: string | null) => void;
   setUndoRedo: (canUndo: boolean, canRedo: boolean) => void;
   toggleOutline: () => void;
@@ -59,6 +61,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   contentVersion: 0,
   showHistory: false,
   showTags: false,
+  showSnippets: false,
 
   setFilePath: (path) =>
     set({
@@ -73,9 +76,10 @@ export const useEditorStore = create<EditorState>((set) => ({
   setWordCount: (wordCount) => set({ wordCount }),
   setCursorPosition: (line, col) => set({ cursorPosition: { line, col } }),
   toggleFileTree: () => set((s) => ({ showFileTree: !s.showFileTree })),
-  toggleComments: () => set((s) => ({ showComments: !s.showComments, showHistory: !s.showComments ? false : s.showHistory, showTags: !s.showComments ? false : s.showTags })),
-  toggleHistory: () => set((s) => ({ showHistory: !s.showHistory, showComments: !s.showHistory ? false : s.showComments, showTags: !s.showHistory ? false : s.showTags })),
-  toggleTags: () => set((s) => ({ showTags: !s.showTags, showComments: !s.showTags ? false : s.showComments, showHistory: !s.showTags ? false : s.showHistory })),
+  toggleComments: () => set((s) => ({ showComments: !s.showComments, showHistory: !s.showComments ? false : s.showHistory, showTags: !s.showComments ? false : s.showTags, showSnippets: !s.showComments ? false : s.showSnippets })),
+  toggleHistory: () => set((s) => ({ showHistory: !s.showHistory, showComments: !s.showHistory ? false : s.showComments, showTags: !s.showHistory ? false : s.showTags, showSnippets: !s.showHistory ? false : s.showSnippets })),
+  toggleTags: () => set((s) => ({ showTags: !s.showTags, showComments: !s.showTags ? false : s.showComments, showHistory: !s.showTags ? false : s.showHistory, showSnippets: !s.showTags ? false : s.showSnippets })),
+  toggleSnippets: () => set((s) => ({ showSnippets: !s.showSnippets, showComments: !s.showSnippets ? false : s.showComments, showHistory: !s.showSnippets ? false : s.showHistory, showTags: !s.showSnippets ? false : s.showTags })),
   setActiveCommentId: (id) => set({ activeCommentId: id }),
   setUndoRedo: (canUndo, canRedo) => set({ canUndo, canRedo }),
   toggleOutline: () => set((s) => ({ showOutline: !s.showOutline })),
