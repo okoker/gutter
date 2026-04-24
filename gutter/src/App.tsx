@@ -105,7 +105,7 @@ function App() {
   const commands = useCommands({
     handleNewFile, handleOpenFile, handleSave,
     switchToSource, switchToWysiwyg,
-    toggleFileTree, toggleComments, toggleHistory, toggleTags, toggleOutline,
+    toggleFileTree, toggleComments, toggleHistory, toggleTags, toggleSnippets, toggleOutline,
     toggleReadingMode, cycleTheme, navigateComment,
     setUnifiedSearchMode, setFindReplaceMode,
     setShowExport, setShowPreferences, setTemplatePicker,
@@ -121,7 +121,7 @@ function App() {
   useMenuBarListeners({
     handleNewFile, handleOpenFile, handleSave,
     switchToSource, switchToWysiwyg,
-    toggleFileTree, toggleComments, toggleHistory, toggleTags, toggleOutline,
+    toggleFileTree, toggleComments, toggleHistory, toggleTags, toggleSnippets, toggleOutline,
     toggleReadingMode, cycleTheme, navigateComment,
     setUnifiedSearchMode, setFindReplaceMode,
     setShowExport, setShowPreferences, setTemplatePicker,
@@ -134,7 +134,7 @@ function App() {
     {
       handleNewFile, handleOpenFile, handleSave,
       switchToSource, switchToWysiwyg,
-      toggleFileTree, toggleComments, toggleHistory, toggleTags,
+      toggleFileTree, toggleComments, toggleHistory, toggleTags, toggleSnippets,
       toggleReadingMode, cycleTheme, navigateComment,
       setUnifiedSearchMode, setFindReplaceMode,
       setShowExport, setShowPreferences,

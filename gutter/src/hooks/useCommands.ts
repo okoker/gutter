@@ -22,6 +22,7 @@ export interface CommandDeps {
   toggleComments: () => void;
   toggleHistory: () => void;
   toggleTags: () => void;
+  toggleSnippets: () => void;
   toggleOutline: () => void;
   toggleReadingMode: () => void;
   cycleTheme: () => void;
@@ -69,6 +70,7 @@ export function useCommands(deps: CommandDeps): Command[] {
       { name: "Toggle Comments Panel", shortcut: `${mod}+Shift+C`, action: deps.toggleComments },
       { name: "Version History", shortcut: `${mod}+Shift+H`, action: deps.toggleHistory },
       { name: "Tag Browser", shortcut: `${mod}+Shift+T`, action: deps.toggleTags },
+      { name: "Toggle Snippets Panel", shortcut: `${mod}+Shift+L`, action: deps.toggleSnippets },
       { name: "Toggle Dark/Light Mode", shortcut: `${mod}+Shift+D`, action: () => deps.cycleTheme() },
       { name: "Toggle Document Outline", action: () => deps.toggleOutline() },
       { name: "Quick Open File", shortcut: `${mod}+P`, action: () => deps.setUnifiedSearchMode("files") },

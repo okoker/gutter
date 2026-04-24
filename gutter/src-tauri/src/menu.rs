@@ -119,6 +119,13 @@ pub fn setup_menu(app: &App) -> Result<(), Box<dyn std::error::Error>> {
         true,
         Some("CmdOrCtrl+Shift+T"),
     )?;
+    let toggle_snippets = MenuItem::with_id(
+        app,
+        "toggle_snippets",
+        "Snippets",
+        true,
+        Some("CmdOrCtrl+Shift+L"),
+    )?;
     let cycle_theme = MenuItem::with_id(
         app,
         "cycle_theme",
@@ -132,6 +139,7 @@ pub fn setup_menu(app: &App) -> Result<(), Box<dyn std::error::Error>> {
         .item(&toggle_comments)
         .item(&toggle_history)
         .item(&toggle_tags)
+        .item(&toggle_snippets)
         .item(&toggle_outline)
         .separator()
         .item(&toggle_source)
@@ -252,6 +260,7 @@ pub fn setup_menu(app: &App) -> Result<(), Box<dyn std::error::Error>> {
             "toggle_comments" => "menu:toggle-comments",
             "toggle_history" => "menu:toggle-history",
             "toggle_tags" => "menu:toggle-tags",
+            "toggle_snippets" => "menu:toggle-snippets",
             "toggle_outline" => "menu:toggle-outline",
             "toggle_source" => "menu:toggle-source",
             "toggle_reading" => "menu:toggle-reading",

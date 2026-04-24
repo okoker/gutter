@@ -12,6 +12,7 @@ export interface KeyboardShortcutActions {
   toggleComments: () => void;
   toggleHistory: () => void;
   toggleTags: () => void;
+  toggleSnippets: () => void;
   toggleReadingMode: () => void;
   cycleTheme: () => void;
   navigateComment: (direction: "next" | "prev") => void;
@@ -64,6 +65,9 @@ export function useKeyboardShortcuts(
       } else if (modKey(e) && e.shiftKey && e.key === "T") {
         e.preventDefault();
         actions.toggleTags();
+      } else if (modKey(e) && e.shiftKey && e.key === "L") {
+        e.preventDefault();
+        actions.toggleSnippets();
       } else if (modKey(e) && e.shiftKey && e.key === "D") {
         e.preventDefault();
         actions.cycleTheme();

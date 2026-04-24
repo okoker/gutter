@@ -15,6 +15,7 @@ export interface MenuBarActions {
   toggleComments: () => void;
   toggleHistory: () => void;
   toggleTags: () => void;
+  toggleSnippets: () => void;
   toggleOutline: () => void;
   toggleReadingMode: () => void;
   cycleTheme: () => void;
@@ -85,6 +86,7 @@ export function useMenuBarListeners(actions: MenuBarActions) {
       listen("menu:toggle-comments", () => actions.toggleComments()),
       listen("menu:toggle-history", () => actions.toggleHistory()),
       listen("menu:toggle-tags", () => actions.toggleTags()),
+      listen("menu:toggle-snippets", () => actions.toggleSnippets()),
       listen("menu:toggle-outline", () => actions.toggleOutline()),
       listen("menu:toggle-source", () => {
         if (useEditorStore.getState().isSourceMode) {
