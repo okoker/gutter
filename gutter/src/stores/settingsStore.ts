@@ -13,6 +13,10 @@ interface Settings {
   editorWidth: "narrow" | "medium" | "wide" | "full";
   lineHeight: "compact" | "comfortable" | "spacious";
   accentColor: string;
+  // Multi-root workspace persistence. When disabled, savedWorkspaceRoots is
+  // kept (least-surprise: re-enabling restores the previously-open roots).
+  rememberWorkspaceRoots: boolean;
+  savedWorkspaceRoots: string[];
 }
 
 interface SettingsState extends Settings {
@@ -31,6 +35,8 @@ interface SettingsState extends Settings {
   setEditorWidth: (width: "narrow" | "medium" | "wide" | "full") => void;
   setLineHeight: (height: "compact" | "comfortable" | "spacious") => void;
   setAccentColor: (color: string) => void;
+  setRememberWorkspaceRoots: (v: boolean) => void;
+  setSavedWorkspaceRoots: (paths: string[]) => void;
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -47,6 +53,8 @@ const defaults: Settings = {
   editorWidth: "medium",
   lineHeight: "comfortable",
   accentColor: "teal",
+  rememberWorkspaceRoots: true,
+  savedWorkspaceRoots: [],
 };
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -85,6 +93,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       editorWidth: state.editorWidth,
       lineHeight: state.lineHeight,
       accentColor: state.accentColor,
+      rememberWorkspaceRoots: state.rememberWorkspaceRoots,
+      savedWorkspaceRoots: state.savedWorkspaceRoots,
     };
     try {
       await invoke("write_settings", { content: JSON.stringify(data, null, 2) });
@@ -158,6 +168,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   setAccentColor: (accentColor) => {
     set({ accentColor });
+    debouncedSave();
+  },
+
+  setRememberWorkspaceRoots: (rememberWorkspaceRoots) => {
+    set({ rememberWorkspaceRoots });
+    debouncedSave();
+  },
+
+  setSavedWorkspaceRoots: (savedWorkspaceRoots) => {
+    set({ savedWorkspaceRoots });
     debouncedSave();
   },
 }));

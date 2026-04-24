@@ -140,6 +140,8 @@ export function PreferencesDialog({ onClose, editorRef }: PreferencesDialogProps
     setDefaultAuthor,
     accentColor,
     setAccentColor,
+    rememberWorkspaceRoots,
+    setRememberWorkspaceRoots,
   } = useSettingsStore();
 
   const authorRef = useRef<HTMLInputElement>(null);
@@ -313,6 +315,13 @@ export function PreferencesDialog({ onClose, editorRef }: PreferencesDialogProps
             options={autoSaveOptions}
             value={String(autoSaveInterval)}
             onChange={(v) => setAutoSaveInterval(Number(v))}
+          />
+        </Row>
+
+        <Row label="Restore workspace on launch">
+          <Toggle
+            checked={rememberWorkspaceRoots}
+            onChange={setRememberWorkspaceRoots}
           />
         </Row>
 

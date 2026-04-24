@@ -30,6 +30,7 @@ import { useMultiRootWatcher } from "./hooks/useMultiRootWatcher";
 import { useSaveHandler } from "./hooks/useSaveHandler";
 import { useTabLifecycle } from "./hooks/useTabLifecycle";
 import { useWindowLifecycle } from "./hooks/useWindowLifecycle";
+import { useWorkspacePersistence } from "./hooks/useWorkspacePersistence";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useMenuBarListeners } from "./hooks/useMenuBarListeners";
 import { useCommands } from "./hooks/useCommands";
@@ -143,6 +144,9 @@ function App() {
 
   // Window lifecycle: close guard, drag-drop, settings, tags, version preview clear
   useWindowLifecycle(editorInstanceRef, handleFileTreeOpen, setVersionPreview);
+
+  // Multi-root workspace persistence: restore on launch + sync on change
+  useWorkspacePersistence();
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[var(--editor-bg)] text-[var(--editor-text)] transition-colors">
