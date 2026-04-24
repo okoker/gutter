@@ -26,7 +26,7 @@ import { useWorkspaceStore } from "./stores/workspaceStore";
 import { useSettingsStore } from "./stores/settingsStore";
 import { modLabel } from "./utils/platform";
 import { useThemeApplication } from "./hooks/useThemeApplication";
-import { useFileWatcher } from "./hooks/useFileWatcher";
+import { useMultiRootWatcher } from "./hooks/useMultiRootWatcher";
 import { useSaveHandler } from "./hooks/useSaveHandler";
 import { useTabLifecycle } from "./hooks/useTabLifecycle";
 import { useWindowLifecycle } from "./hooks/useWindowLifecycle";
@@ -80,7 +80,7 @@ function App() {
   } | null>(null);
 
   // File watcher
-  const { showReloadPrompt, setShowReloadPrompt, reloadFromDisk, dismissReloadPrompt } = useFileWatcher(markdownRef, lastSaveTimeRef);
+  const { showReloadPrompt, setShowReloadPrompt, reloadFromDisk, dismissReloadPrompt } = useMultiRootWatcher(markdownRef, lastSaveTimeRef);
 
   // Save, history restore, version preview
   const { handleSave, handleHistoryRestore, handleHistoryPreview, versionPreview, setVersionPreview } = useSaveHandler(markdownRef, lastSaveTimeRef, tabContentCache);

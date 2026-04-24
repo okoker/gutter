@@ -1,25 +1,37 @@
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 
+/// Multi-root watcher state. Keyed by canonical root path. Dropping a value
+/// auto-unwatches via notify's RecommendedWatcher Drop impl.
 struct WatcherState {
-    watcher: Mutex<Option<RecommendedWatcher>>,
+    watchers: Mutex<HashMap<PathBuf, RecommendedWatcher>>,
 }
 
 struct IgnoredPathState {
     // Maps absolute path -> Instant when it should stop being ignored
-    paths: Mutex<std::collections::HashMap<PathBuf, Instant>>,
+    paths: Mutex<HashMap<PathBuf, Instant>>,
 }
 
 pub fn init(app: &tauri::App) {
     app.manage(WatcherState {
-        watcher: Mutex::new(None),
+        watchers: Mutex::new(HashMap::new()),
     });
     app.manage(IgnoredPathState {
-        paths: Mutex::new(std::collections::HashMap::new()),
+        paths: Mutex::new(HashMap::new()),
     });
+}
+
+/// Canonicalize a path (resolves symlinks, returns absolute form). Used by the
+/// frontend when adding a root so the store's key matches the watcher's key.
+#[tauri::command]
+pub fn canonicalize_path(path: String) -> Result<String, String> {
+    std::fs::canonicalize(&path)
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| format!("Failed to canonicalize path: {}", e))
 }
 
 /// Temporarily suppress watcher events for a specific file path
@@ -58,9 +70,11 @@ fn is_ignored_path(path: &Path) -> bool {
 #[tauri::command]
 pub fn start_watcher(app: AppHandle, path: String) -> Result<(), String> {
     let state = app.state::<WatcherState>();
-    let mut guard = state.watcher.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.watchers.lock().map_err(|e| e.to_string())?;
 
-    *guard = None;
+    // Idempotent: remove any existing watcher for this path before re-registering.
+    let key = PathBuf::from(&path);
+    guard.remove(&key);
 
     let app_handle = app.clone();
     let watch_path = path.clone();
@@ -107,14 +121,22 @@ pub fn start_watcher(app: AppHandle, path: String) -> Result<(), String> {
         .watch(Path::new(&path), RecursiveMode::Recursive)
         .map_err(|e| format!("Failed to start watching: {}", e))?;
 
-    *guard = Some(watcher);
+    guard.insert(key, watcher);
     Ok(())
 }
 
+/// Stop a specific root's watcher, or all of them when `path` is None.
 #[tauri::command]
-pub fn stop_watcher(app: AppHandle) -> Result<(), String> {
+pub fn stop_watcher(app: AppHandle, path: Option<String>) -> Result<(), String> {
     let state = app.state::<WatcherState>();
-    let mut guard = state.watcher.lock().map_err(|e| e.to_string())?;
-    *guard = None;
+    let mut guard = state.watchers.lock().map_err(|e| e.to_string())?;
+    match path {
+        Some(p) => {
+            guard.remove(&PathBuf::from(p));
+        }
+        None => {
+            guard.clear();
+        }
+    }
     Ok(())
 }

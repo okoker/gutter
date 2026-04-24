@@ -69,6 +69,7 @@ pub fn run() {
             commands::settings::write_settings,
             commands::watcher::start_watcher,
             commands::watcher::stop_watcher,
+            commands::watcher::canonicalize_path,
             commands::export::export_html,
             commands::search::search_workspace,
             commands::templates::init_default_templates,
@@ -101,7 +102,7 @@ pub fn run() {
                 }
                 RunEvent::WindowEvent { event: WindowEvent::Destroyed, .. } => {
                     // Stop the watcher so its background thread shuts down cleanly
-                    let _ = commands::watcher::stop_watcher(app_handle.clone());
+                    let _ = commands::watcher::stop_watcher(app_handle.clone(), None);
                     // Force-exit to avoid macOS 26 WebKit crash: after the window
                     // is deallocated, pending run-loop callbacks
                     // (WebPageProxy::dispatchSetObscuredContentInsets) access freed
