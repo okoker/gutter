@@ -581,18 +581,26 @@ export const GutterEditor = forwardRef<GutterEditorHandle, GutterEditorProps>(
         items.push({ label: "", action: () => {}, separator: true });
 
         if (hasSelection) {
-          // Detect atom nodes (Mermaid, math) in the selection — textBetween
-          // silently drops their content. Offer a disabled hint in that case.
-          let hasAtom = false;
+          // Detect only the atom types whose content would be lost by
+          // textBetween: Mermaid, math, images. Other atoms (hardBreak,
+          // horizontalRule) are either harmless or produce meaningful
+          // text when serialized and should NOT block the save.
+          const lossyAtomTypes = new Set([
+            "mermaidBlock",
+            "mathBlock",
+            "mathInline",
+            "image",
+          ]);
+          let hasLossyAtom = false;
           editor.state.doc.nodesBetween(from, to, (node) => {
-            if (node.isAtom) {
-              hasAtom = true;
+            if (lossyAtomTypes.has(node.type.name)) {
+              hasLossyAtom = true;
               return false;
             }
             return true;
           });
 
-          if (hasAtom) {
+          if (hasLossyAtom) {
             items.push({
               label: "Save Selection as Snippet (contains diagram — switch to source mode)",
               action: async () => {
@@ -600,7 +608,7 @@ export const GutterEditor = forwardRef<GutterEditorHandle, GutterEditorProps>(
                 useToastStore
                   .getState()
                   .addToast(
-                    "Selection contains an atom node (diagram/math). Switch to source mode to save as text.",
+                    "Selection contains a diagram, image, or math block. Switch to source mode to save as text.",
                     "info",
                     3000,
                   );
