@@ -82,6 +82,9 @@ export function useFileOps() {
         // Clear tab dirty state (unifying with editorStore.isDirty which saveFile already cleared)
         useWorkspaceStore.getState().setTabDirty(filePath, false);
 
+        // Notify panels listening for save events (e.g. SnippetsPanel live preview refresh).
+        window.dispatchEvent(new CustomEvent("file-saved", { detail: { path: filePath } }));
+
         // Also save comments and companion if callback provided
         if (onComplete) await onComplete();
       }, autoSaveInterval);

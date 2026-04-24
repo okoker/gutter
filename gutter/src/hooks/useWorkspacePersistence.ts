@@ -25,7 +25,7 @@ export function useWorkspacePersistence() {
       // surfaces its own toast on error (TCC-denied, missing, unmounted).
       for (const path of savedWorkspaceRoots) {
         try {
-          await useWorkspaceStore.getState().addRoot(path);
+          await useWorkspaceStore.getState().addRoot(path, { silentError: true });
         } catch (e) {
           console.warn(`Could not restore workspace root: ${path}`, e);
         }

@@ -47,7 +47,7 @@ interface WorkspaceState {
   openTabs: OpenTab[];
   activeTabPath: string | null;
 
-  addRoot: (rawPath: string) => Promise<void>;
+  addRoot: (rawPath: string, opts?: { silentError?: boolean }) => Promise<void>;
   removeRoot: (path: string) => void;
   loadRootTree: (path: string) => Promise<void>;
   setRootExpanded: (path: string, expanded: boolean) => void;
@@ -91,15 +91,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   openTabs: [],
   activeTabPath: null,
 
-  addRoot: async (rawPath: string) => {
-    // canonicalize_path requires the path to exist on disk. Surface failures
-    // (missing path / TCC denied / unmounted volume) via toast and rethrow so
-    // the caller can decide what to do.
+  addRoot: async (rawPath: string, opts?: { silentError?: boolean }) => {
+    // canonicalize_path requires the path to exist on disk. Callers that want
+    // visible error feedback omit opts (default: toast). Workspace-restore on
+    // launch passes silentError:true so missing/TCC-blocked paths are logged,
+    // not toasted — avoids noisy toasts at startup for known-missing paths.
     let path: string;
     try {
       path = await invoke<string>("canonicalize_path", { path: rawPath });
     } catch (e) {
-      useToastStore.getState().addToast(`Could not open folder: ${rawPath}`, "error");
+      if (!opts?.silentError) {
+        useToastStore.getState().addToast(`Could not open folder: ${rawPath}`, "error");
+      }
       throw e;
     }
 
@@ -115,7 +118,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     try {
       tree = await invoke<FileEntry[]>("read_directory", { path });
     } catch (e) {
-      useToastStore.getState().addToast(`Could not read folder: ${path}`, "error");
+      if (!opts?.silentError) {
+        useToastStore.getState().addToast(`Could not read folder: ${path}`, "error");
+      }
       throw e;
     }
 
