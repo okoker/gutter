@@ -737,7 +737,7 @@ const FileTreeNode = memo(function FileTreeNode({
         <div
           data-tree-path={entry.path}
           data-tree-dir="true"
-          className={`flex items-center gap-1 py-[5px] cursor-pointer select-none transition-all duration-150 text-[13px] border-l-2 ${
+          className={`relative flex items-center gap-1 py-[5px] cursor-pointer select-none transition-all duration-150 text-[13px] border-l-2 ${
             isDropTarget
               ? "bg-[var(--selection-bg)] border-l-[var(--accent)]"
               : isDragSource
