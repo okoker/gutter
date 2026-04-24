@@ -32,6 +32,10 @@ export function SnippetsPanel({ onClose, onInsert, onOpenAsTab }: SnippetsPanelP
   const [creatingNew, setCreatingNew] = useState(false);
   // Defer single-click action so a trailing double-click can cancel it.
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Pre-cache the right-clicked snippet's content so the context-menu "Copy"
+  // action can call navigator.clipboard.writeText synchronously from the menu
+  // click — no await between user gesture and clipboard write.
+  const copyCacheRef = useRef<{ path: string; content: string } | null>(null);
 
   // Refresh on panel mount — picks up files added externally (e.g. via Finder)
   // without needing a dedicated refresh button.
@@ -63,50 +67,24 @@ export function SnippetsPanel({ onClose, onInsert, onOpenAsTab }: SnippetsPanelP
     [readSnippetContent, onInsert],
   );
 
-  const copyToClipboard = useCallback(
-    async (s: SnippetInfo) => {
-      let content: string;
-      try {
-        content = await readSnippetContent(s.path);
-      } catch (e) {
-        useToastStore
-          .getState()
-          .addToast(`Failed to read snippet: ${e}`, "error");
-        return;
-      }
-      // Try the modern API first. If it fails (e.g. Tauri webview focus/
-      // permission edge cases), fall back to a hidden-textarea + execCommand.
-      try {
-        await navigator.clipboard.writeText(content);
-        useToastStore.getState().addToast("Snippet copied", "success", 1500);
-        return;
-      } catch {
-        // fall through to fallback
-      }
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = content;
-        ta.style.position = "fixed";
-        ta.style.top = "-9999px";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        const ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-        if (ok) {
-          useToastStore.getState().addToast("Snippet copied", "success", 1500);
-        } else {
-          useToastStore
-            .getState()
-            .addToast("Copy failed — clipboard not available", "error");
-        }
-      } catch (e) {
-        useToastStore.getState().addToast(`Copy failed: ${e}`, "error");
-      }
-    },
-    [readSnippetContent],
-  );
+  // Called from the context-menu "Copy to Clipboard" item. Uses pre-cached
+  // content (fetched when the right-click opened the menu) so the call chain
+  // is: user click → synchronous writeText → clipboard. No await between the
+  // click and the write, so the browser's user-gesture requirement is met
+  // (same pattern the rest of the app uses: CommentsPanel, App.tsx, etc.).
+  const copyToClipboard = useCallback((s: SnippetInfo) => {
+    const cached = copyCacheRef.current;
+    if (!cached || cached.path !== s.path) {
+      useToastStore
+        .getState()
+        .addToast("Copy failed — snippet not cached, reopen the menu", "error");
+      return;
+    }
+    navigator.clipboard.writeText(cached.content).then(
+      () => useToastStore.getState().addToast("Snippet copied", "success", 1500),
+      (err) => useToastStore.getState().addToast(`Copy failed: ${err}`, "error"),
+    );
+  }, []);
 
   const handleCreate = useCallback(
     async (filename: string) => {
@@ -154,6 +132,19 @@ export function SnippetsPanel({ onClose, onInsert, onOpenAsTab }: SnippetsPanelP
     (s: SnippetInfo, e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      // Pre-fetch content so the "Copy to Clipboard" action can run
+      // synchronously from its click handler (no await between user-gesture
+      // and navigator.clipboard.writeText). Fetch is async and happens while
+      // the menu is already visible — the user typically takes >100ms to
+      // move to the menu item, so this finishes in time.
+      copyCacheRef.current = null;
+      void readSnippetContent(s.path)
+        .then((content) => {
+          copyCacheRef.current = { path: s.path, content };
+        })
+        .catch(() => {
+          copyCacheRef.current = null;
+        });
       setContextMenu({
         x: e.clientX,
         y: e.clientY,
@@ -176,7 +167,7 @@ export function SnippetsPanel({ onClose, onInsert, onOpenAsTab }: SnippetsPanelP
         ],
       });
     },
-    [insertFromSnippet, copyToClipboard, onOpenAsTab, removeSnippet],
+    [readSnippetContent, insertFromSnippet, copyToClipboard, onOpenAsTab, removeSnippet],
   );
 
   return (
