@@ -119,15 +119,28 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
   } | null>(null);
 
   const handleOpenFolder = useCallback(async () => {
-    const selected = await open({ directory: true });
-    if (selected) {
-      const path =
-        typeof selected === "string"
-          ? selected
-          : (selected as { path: string }).path;
-      await loadFileTree(path);
+    // Clean-slate "Open Folder": replaces the whole workspace. When roots are
+    // already open, confirm before nuking — use "Add Folder to Workspace" to
+    // append instead.
+    const currentRoots = useWorkspaceStore.getState().roots;
+    if (currentRoots.length > 0) {
+      const ok = await ask(
+        `This will close ${currentRoots.length} folder${currentRoots.length > 1 ? "s" : ""} currently in your workspace. Continue?`,
+        { title: "Replace Workspace?", kind: "warning" },
+      );
+      if (!ok) return;
     }
-  }, [loadFileTree]);
+    const selected = await open({ directory: true });
+    if (!selected) return;
+    const path = typeof selected === "string" ? selected : (selected as { path: string }).path;
+    const toRemove = useWorkspaceStore.getState().roots.map((r) => r.path);
+    toRemove.forEach((p) => useWorkspaceStore.getState().removeRoot(p));
+    try {
+      await useWorkspaceStore.getState().addRoot(path);
+    } catch (e) {
+      console.error("Open Folder replace failed:", e);
+    }
+  }, []);
 
   const handleCreateFile = useCallback(
     (parentPath: string) => {

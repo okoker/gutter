@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, ask } from "@tauri-apps/plugin-dialog";
 import { useEditorStore } from "../stores/editorStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { parentDir } from "../utils/path";
@@ -39,10 +39,23 @@ export function useMenuBarListeners(actions: MenuBarActions) {
       listen("menu:new-file", () => actions.handleNewFile()),
       listen("menu:open", () => actions.handleOpenFile()),
       listen("menu:open-folder", async () => {
+        const { roots } = useWorkspaceStore.getState();
+        if (roots.length > 0) {
+          const ok = await ask(
+            `This will close ${roots.length} folder${roots.length > 1 ? "s" : ""} currently in your workspace. Continue?`,
+            { title: "Replace Workspace?", kind: "warning" },
+          );
+          if (!ok) return;
+        }
         const selected = await open({ directory: true });
-        if (selected) {
-          const path = typeof selected === "string" ? selected : (selected as { path: string }).path;
-          await loadFileTree(path);
+        if (!selected) return;
+        const path = typeof selected === "string" ? selected : (selected as { path: string }).path;
+        const current = useWorkspaceStore.getState().roots.map((r) => r.path);
+        current.forEach((p) => useWorkspaceStore.getState().removeRoot(p));
+        try {
+          await useWorkspaceStore.getState().addRoot(path);
+        } catch (e) {
+          console.error("Open Folder replace failed:", e);
         }
       }),
       listen("menu:add-folder", async () => {
