@@ -1,6 +1,6 @@
 import { useEditorStore } from "../stores/editorStore";
 import { modLabel } from "../utils/platform";
-import { Circle, MessageSquare, UndoIcon, RedoIcon, SidebarIcon, OutlineIcon, BookOpen, HistoryIcon, TagIcon } from "./Icons";
+import { Circle, MessageSquare, UndoIcon, RedoIcon, SidebarIcon, OutlineIcon, BookOpen, HistoryIcon, TagIcon, Copy } from "./Icons";
 
 function Divider() {
   return (
@@ -22,6 +22,7 @@ export function StatusBar() {
   const showComments = useEditorStore((s) => s.showComments);
   const showHistory = useEditorStore((s) => s.showHistory);
   const showTags = useEditorStore((s) => s.showTags);
+  const showSnippets = useEditorStore((s) => s.showSnippets);
   const showOutline = useEditorStore((s) => s.showOutline);
   const canUndo = useEditorStore((s) => s.canUndo);
   const canRedo = useEditorStore((s) => s.canRedo);
@@ -29,6 +30,7 @@ export function StatusBar() {
   const toggleComments = useEditorStore((s) => s.toggleComments);
   const toggleHistory = useEditorStore((s) => s.toggleHistory);
   const toggleTags = useEditorStore((s) => s.toggleTags);
+  const toggleSnippets = useEditorStore((s) => s.toggleSnippets);
   const toggleOutline = useEditorStore((s) => s.toggleOutline);
   const toggleSourceMode = useEditorStore((s) => s.toggleSourceMode);
   const toggleReadingMode = useEditorStore((s) => s.toggleReadingMode);
@@ -165,6 +167,19 @@ export function StatusBar() {
         title={showComments ? `Hide comments (${modLabel()}+Shift+C)` : `Show comments (${modLabel()}+Shift+C)`}
       >
         <MessageSquare size={15} />
+      </button>
+
+      {/* Snippets panel toggle (rightmost) */}
+      <button
+        onClick={toggleSnippets}
+        className={`px-1.5 h-full flex items-center rounded transition-colors ${
+          showSnippets
+            ? "text-[var(--accent)] bg-[var(--accent-subtle)]"
+            : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+        }`}
+        title={showSnippets ? `Hide snippets (${modLabel()}+Shift+L)` : `Show snippets (${modLabel()}+Shift+L)`}
+      >
+        <Copy size={15} />
       </button>
     </div>
   );
