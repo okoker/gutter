@@ -65,12 +65,44 @@ export function SnippetsPanel({ onClose, onInsert, onOpenAsTab }: SnippetsPanelP
 
   const copyToClipboard = useCallback(
     async (s: SnippetInfo) => {
+      let content: string;
       try {
-        const content = await readSnippetContent(s.path);
+        content = await readSnippetContent(s.path);
+      } catch (e) {
+        useToastStore
+          .getState()
+          .addToast(`Failed to read snippet: ${e}`, "error");
+        return;
+      }
+      // Try the modern API first. If it fails (e.g. Tauri webview focus/
+      // permission edge cases), fall back to a hidden-textarea + execCommand.
+      try {
         await navigator.clipboard.writeText(content);
         useToastStore.getState().addToast("Snippet copied", "success", 1500);
+        return;
+      } catch {
+        // fall through to fallback
+      }
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = content;
+        ta.style.position = "fixed";
+        ta.style.top = "-9999px";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        if (ok) {
+          useToastStore.getState().addToast("Snippet copied", "success", 1500);
+        } else {
+          useToastStore
+            .getState()
+            .addToast("Copy failed — clipboard not available", "error");
+        }
       } catch (e) {
-        useToastStore.getState().addToast(`Failed to copy: ${e}`, "error");
+        useToastStore.getState().addToast(`Copy failed: ${e}`, "error");
       }
     },
     [readSnippetContent],

@@ -18,7 +18,11 @@ const toastTimers = new Map<string, ReturnType<typeof setTimeout>>();
 export const useToastStore = create<ToastState>((set, get) => ({
   toasts: [],
 
-  addToast: (message, type, duration = 4000) => {
+  addToast: (message, type, duration) => {
+    // Type-aware defaults: errors need time to read, info is moderate, success brief.
+    if (duration === undefined) {
+      duration = type === "error" ? 8000 : type === "info" ? 5000 : 4000;
+    }
     // Deduplicate: if a toast with the same message+type exists, reset its timer
     const existing = get().toasts.find((t) => t.message === message && t.type === type);
     if (existing) {
