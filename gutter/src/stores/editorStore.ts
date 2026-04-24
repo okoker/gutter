@@ -52,7 +52,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   wordCount: 0,
   cursorPosition: { line: 1, col: 1 },
   showFileTree: true,
-  showComments: true,
+  showComments: false,
   activeCommentId: null,
   canUndo: false,
   canRedo: false,
