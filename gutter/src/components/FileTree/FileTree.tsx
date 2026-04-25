@@ -676,12 +676,12 @@ const FileTreeNode = memo(function FileTreeNode({
   tagFilterFiles: Set<string> | null;
 }) {
   // Initial expanded state: if we've seen this folder before (e.g. mounting
-  // after a root collapse/expand), restore the last value. Otherwise default:
-  // depth-0 expanded, deeper collapsed.
+  // after a root collapse/expand), restore the last value. Otherwise start
+  // collapsed — only the workspace-root header opens by default.
   const [expanded, setExpanded] = useState(() => {
     if (!entry.is_dir) return false;
     const prior = expandedPathsRef.current.get(entry.path);
-    return prior !== undefined ? prior : depth < 1;
+    return prior !== undefined ? prior : false;
   });
   const [renaming, setRenaming] = useState(false);
   const [creating, setCreating] = useState<"file" | "folder" | null>(null);
