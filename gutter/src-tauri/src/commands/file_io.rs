@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::AppHandle;
 use super::watcher;
@@ -9,8 +9,31 @@ pub fn read_file(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
 }
 
+fn templates_dir_resolved() -> Option<PathBuf> {
+    let home = dirs::home_dir()?;
+    let raw = home.join(".gutter").join("templates");
+    Some(fs::canonicalize(&raw).unwrap_or(raw))
+}
+
+fn resolves_inside_templates_dir(path: &Path) -> bool {
+    let Some(templates) = templates_dir_resolved() else { return false; };
+    let parent = match path.parent() {
+        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+        _ => return false,
+    };
+    let parent_resolved = fs::canonicalize(&parent).unwrap_or(parent);
+    let filename = match path.file_name() {
+        Some(n) => n,
+        None => return false,
+    };
+    parent_resolved.join(filename).starts_with(&templates)
+}
+
 #[tauri::command]
 pub fn write_file(app: AppHandle, path: String, content: String) -> Result<(), String> {
+    if resolves_inside_templates_dir(Path::new(&path)) {
+        return Err("Cannot write into the templates directory — use Save as Template instead".to_string());
+    }
     watcher::mark_write(&app, &path);
     fs::write(&path, &content).map_err(|e| format!("Failed to write file: {}", e))
 }

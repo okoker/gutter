@@ -24,7 +24,7 @@ export interface MenuBarActions {
   setFindReplaceMode: (mode: "find" | "replace") => void;
   setShowExport: (show: boolean) => void;
   setShowPreferences: (show: boolean) => void;
-  setTemplatePicker: (v: { mode: "new" | "save"; targetFolder: string } | null) => void;
+  setTemplatePicker: (v: { mode: "new" | "save"; targetFolder: string; useSaveDialog?: boolean } | null) => void;
   createComment: () => void;
   getMarkdown: () => string;
 }

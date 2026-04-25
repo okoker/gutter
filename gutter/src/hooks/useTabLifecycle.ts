@@ -26,7 +26,7 @@ export function useTabLifecycle(
   lastSaveTimeRef: React.MutableRefObject<number>,
 ) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [templatePicker, setTemplatePicker] = useState<{ mode: "new" | "save"; targetFolder: string } | null>(null);
+  const [templatePicker, setTemplatePicker] = useState<{ mode: "new" | "save"; targetFolder: string; useSaveDialog?: boolean } | null>(null);
 
   const untitledCounterRef = useRef(0);
   const activationIdRef = useRef(0);

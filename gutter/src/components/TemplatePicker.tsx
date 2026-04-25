@@ -8,14 +8,22 @@ interface TemplatePickerProps {
   mode: "new" | "save";
   targetFolder: string;
   currentContent?: string;
+  useSaveDialog?: boolean;
   onOpenFile: (path: string) => void;
   onClose: () => void;
+}
+
+// Strip characters that are illegal in filenames on Windows/macOS so the
+// save-dialog defaultPath always lands somewhere valid.
+function sanitizeFilename(name: string): string {
+  return name.replace(/[/\\:*?"<>|]/g, "-").trim() || "untitled";
 }
 
 export function TemplatePicker({
   mode,
   targetFolder,
   currentContent,
+  useSaveDialog,
   onOpenFile,
   onClose,
 }: TemplatePickerProps) {
@@ -25,6 +33,7 @@ export function TemplatePicker({
   const [filename, setFilename] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -100,8 +109,10 @@ export function TemplatePicker({
   );
 
   const handleCreate = useCallback(async () => {
-    if (!selectedTemplate || !filename.trim()) return;
+    if (!selectedTemplate) return;
+    if (!useSaveDialog && !filename.trim()) return;
     setLoading(true);
+    setErrorMsg(null);
     try {
       const content = await invoke<string>("read_template", {
         name: selectedTemplate,
@@ -110,10 +121,26 @@ export function TemplatePicker({
       const today = new Date().toISOString().slice(0, 10);
       const processed = content.replace(/\{\{date\}\}/g, today);
 
-      const fname = filename.trim().endsWith(".md")
-        ? filename.trim()
-        : `${filename.trim()}.md`;
-      const filePath = joinPath(targetFolder, fname);
+      let filePath: string;
+      if (useSaveDialog) {
+        const { save } = await import("@tauri-apps/plugin-dialog");
+        const defaultName = `${sanitizeFilename(selectedTemplate)} ${today}.md`;
+        const picked = await save({
+          defaultPath: defaultName,
+          filters: [{ name: "Markdown", extensions: ["md"] }],
+        });
+        if (!picked) {
+          setLoading(false);
+          return;
+        }
+        filePath = picked.endsWith(".md") ? picked : `${picked}.md`;
+      } else {
+        const fname = filename.trim().endsWith(".md")
+          ? filename.trim()
+          : `${filename.trim()}.md`;
+        filePath = joinPath(targetFolder, fname);
+      }
+
       await invoke("write_file", { path: filePath, content: processed });
       if (workspacePath) await loadFileTree(workspacePath);
       onOpenFile(filePath);
@@ -122,7 +149,9 @@ export function TemplatePicker({
         .addToast(`Created ${pathFileName(filePath)}`, "success", 2000);
       onClose();
     } catch (e) {
-      useToastStore.getState().addToast("Failed to create file", "error");
+      const msg = typeof e === "string" ? e : (e as Error)?.message || "Failed to create file";
+      setErrorMsg(msg);
+      useToastStore.getState().addToast(msg, "error");
       console.error("Failed to create from template:", e);
     }
     setLoading(false);
@@ -130,6 +159,7 @@ export function TemplatePicker({
     selectedTemplate,
     filename,
     targetFolder,
+    useSaveDialog,
     workspacePath,
     loadFileTree,
     onOpenFile,
@@ -245,28 +275,46 @@ export function TemplatePicker({
               </div>
             )}
 
+            {/* Inline error (visible above modal — toasts get hidden behind backdrop) */}
+            {errorMsg && (
+              <div className="mx-5 mt-2 px-3 py-2 rounded-lg text-[12px] text-[var(--status-error)] bg-[color-mix(in_srgb,var(--status-error),transparent_92%)] border border-[color-mix(in_srgb,var(--status-error),transparent_70%)] break-words">
+                {errorMsg}
+              </div>
+            )}
+
             {/* Filename input + Create */}
             <div className="px-5 pb-5 pt-2 flex items-center gap-2">
-              <input
-                ref={inputRef}
-                type="text"
-                value={filename}
-                onChange={(e) => setFilename(e.target.value)}
-                placeholder="filename.md"
-                className="flex-1 px-3 py-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--editor-border)] text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)]"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && selectedTemplate && filename.trim()) {
-                    e.preventDefault();
-                    handleCreate();
-                  }
-                }}
-              />
+              {!useSaveDialog && (
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={filename}
+                  onChange={(e) => setFilename(e.target.value)}
+                  placeholder="filename.md"
+                  className="flex-1 px-3 py-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--editor-border)] text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)]"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && selectedTemplate && filename.trim()) {
+                      e.preventDefault();
+                      handleCreate();
+                    }
+                  }}
+                />
+              )}
+              {useSaveDialog && (
+                <span className="flex-1 text-[12px] text-[var(--text-muted)]">
+                  You'll choose where to save the new file.
+                </span>
+              )}
               <button
                 className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                 onClick={handleCreate}
-                disabled={loading || !selectedTemplate || !filename.trim()}
+                disabled={
+                  loading ||
+                  !selectedTemplate ||
+                  (!useSaveDialog && !filename.trim())
+                }
               >
-                Create
+                {useSaveDialog ? "Choose Location…" : "Create"}
               </button>
             </div>
           </>

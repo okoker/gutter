@@ -7,6 +7,7 @@ interface WelcomeScreenProps {
   onNewFile: () => void;
   onOpenFile: () => void;
   onOpenFolder: () => void;
+  onNewFromTemplate: () => void;
   onOpenRecent: (path: string) => void;
 }
 
@@ -60,7 +61,7 @@ const allShortcuts = [
   ]},
 ];
 
-export function WelcomeScreen({ onNewFile, onOpenFile, onOpenFolder, onOpenRecent }: WelcomeScreenProps) {
+export function WelcomeScreen({ onNewFile, onOpenFile, onOpenFolder, onNewFromTemplate, onOpenRecent }: WelcomeScreenProps) {
   const { recentFiles } = useSettingsStore();
   const [showAllShortcuts, setShowAllShortcuts] = useState(false);
 
@@ -92,6 +93,12 @@ export function WelcomeScreen({ onNewFile, onOpenFile, onOpenFolder, onOpenRecen
             className="px-5 py-2 rounded-lg border border-[var(--editor-border)] text-[var(--text-primary)] text-[14px] font-medium hover:bg-[var(--surface-hover)] transition-colors"
           >
             Open Folder
+          </button>
+          <button
+            onClick={onNewFromTemplate}
+            className="px-5 py-2 rounded-lg border border-[var(--editor-border)] text-[var(--text-primary)] text-[14px] font-medium hover:bg-[var(--surface-hover)] transition-colors"
+          >
+            New from Template
           </button>
         </div>
 

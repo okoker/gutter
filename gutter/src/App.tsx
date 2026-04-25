@@ -361,6 +361,9 @@ function App() {
                     console.error("WelcomeScreen open folder failed:", e);
                   }
                 }}
+                onNewFromTemplate={() =>
+                  setTemplatePicker({ mode: "new", targetFolder: "", useSaveDialog: true })
+                }
                 onOpenRecent={handleFileTreeOpen}
               />
             ) : isReadingMode ? (
@@ -489,6 +492,7 @@ function App() {
         <TemplatePicker
           mode={templatePicker.mode}
           targetFolder={templatePicker.targetFolder}
+          useSaveDialog={templatePicker.useSaveDialog}
           currentContent={markdownRef.current || undefined}
           onOpenFile={handleFileTreeOpen}
           onClose={() => setTemplatePicker(null)}
