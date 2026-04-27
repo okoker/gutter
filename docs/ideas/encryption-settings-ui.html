@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Encryption Settings — UI options</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --surface-2: #fafafa;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --subtle: #aeaeb2;
+    --border: #d2d2d7;
+    --border-strong: #86868b;
+    --accent: #0071e3;
+    --accent-bg: rgba(0, 113, 227, 0.08);
+    --warn: #ff9500;
+    --warn-bg: #fff4e5;
+    --danger: #ff3b30;
+    --danger-bg: #ffeae8;
+    --success: #34c759;
+    --disabled-text: #c7c7cc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e;
+      --surface: #2c2c2e;
+      --surface-2: #242426;
+      --text: #f2f2f7;
+      --muted: #98989d;
+      --subtle: #636366;
+      --border: #3a3a3c;
+      --border-strong: #48484a;
+      --accent: #0a84ff;
+      --accent-bg: rgba(10, 132, 255, 0.18);
+      --warn-bg: #3a2e1f;
+      --danger-bg: #3a1f1d;
+      --disabled-text: #48484a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    padding: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+  .lede { color: var(--muted); margin: 0 0 28px; font-size: 13px; }
+  .option-header {
+    margin: 36px 0 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .option-header h2 { font-size: 14px; margin: 0; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .option-header .desc { font-size: 13px; color: var(--muted); }
+
+  /* ============================== Option A: Linear ============================== */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 600px;
+  }
+  .panel-title {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .row:last-child { border-bottom: 0; }
+  .row.col { flex-direction: column; align-items: stretch; gap: 8px; }
+  .row .label { font-size: 13px; }
+  .row .label .sub { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .section-label {
+    padding: 12px 20px 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Form controls */
+  .seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 2px; }
+  .seg button { background: transparent; border: 0; padding: 5px 14px; font-size: 12.5px; color: var(--text); border-radius: 5px; cursor: default; }
+  .seg button.on { background: var(--surface); box-shadow: 0 0 0 1px var(--border); font-weight: 600; }
+  .radio { display: flex; gap: 14px; flex-wrap: wrap; }
+  .radio label { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: default; }
+  .radio input { accent-color: var(--accent); }
+  .toggle {
+    width: 36px; height: 22px; background: var(--border); border-radius: 100px; position: relative; flex-shrink: 0;
+  }
+  .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: 0.18s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .toggle.on { background: var(--success); }
+  .toggle.on::after { left: 16px; }
+  .toggle.off-disabled { background: var(--border); opacity: 0.5; }
+  .btn {
+    padding: 6px 12px; font-size: 12.5px; border: 1px solid var(--border-strong); background: var(--surface);
+    border-radius: 6px; cursor: default; color: var(--text);
+  }
+  .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn.danger { background: var(--surface); color: var(--danger); border-color: var(--danger); }
+  .btn.warn { background: var(--surface); color: var(--warn); border-color: var(--warn); }
+  .pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 100px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+  .pill.set { background: var(--accent-bg); color: var(--accent); border-color: transparent; }
+  .pill.unset { background: var(--surface-2); color: var(--muted); }
+  .help-row { padding: 10px 20px; background: var(--surface-2); font-size: 12px; }
+  .help-row a { color: var(--accent); text-decoration: none; }
+
+  .danger-row { background: var(--danger-bg); }
+  .warn-text { font-size: 11.5px; color: var(--warn); }
+  .danger-text { font-size: 11.5px; color: var(--danger); }
+  .info-text { font-size: 11.5px; color: var(--muted); }
+
+  /* ============================== Option B: Tabbed ============================== */
+  .tabbed { display: grid; grid-template-columns: 160px 1fr; max-width: 640px; min-height: 380px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .tabs { background: var(--surface-2); border-right: 1px solid var(--border); padding: 12px 0; }
+  .tabs .tab {
+    padding: 8px 18px; font-size: 13px; cursor: default; color: var(--text); border-left: 2px solid transparent;
+  }
+  .tabs .tab.active { background: var(--accent-bg); color: var(--accent); border-left-color: var(--accent); font-weight: 500; }
+  .tabs .tab + .tab { margin-top: 2px; }
+  .tab-content { padding: 18px 22px; }
+  .tab-content h3 { font-size: 14px; margin: 0 0 14px; font-weight: 600; }
+
+  /* ============================== Option C: Cards ============================== */
+  .cards { display: grid; gap: 12px; max-width: 600px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+  }
+  .card-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 10px; font-weight: 600; }
+  .card .row { padding: 0; border: 0; padding-bottom: 8px; }
+  .card .row:last-of-type { padding-bottom: 0; }
+  .card.danger { border-color: var(--danger); }
+  .card.danger .card-title { color: var(--danger); }
+</style>
+</head>
+<body>
+
+<h1>Encryption Settings — three layouts to react to</h1>
+<p class="lede">Same contents, three different visual approaches. Pick the one that feels right (or mix). Mockup colors follow your OS preference.</p>
+
+<!-- ============================== OPTION A: LINEAR ============================== -->
+<div class="option-header">
+  <h2>Option A — Linear / sectioned</h2>
+  <span class="desc">macOS System Settings style. Single column, scrollable, sections divided by faint background bands.</span>
+</div>
+
+<div class="panel">
+  <div class="panel-title">Encryption</div>
+
+  <div class="section-label">Default behavior</div>
+
+  <div class="row">
+    <div class="label">
+      Default new file format
+      <span class="sub">Whether new files are encrypted by default.</span>
+    </div>
+    <div class="seg">
+      <button class="on">.md</button>
+      <button>.emd</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">
+      Default passphrase
+      <span class="sub">Used silently when you create new encrypted files.</span>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <span class="pill set">Set</span>
+      <button class="btn warn">Change…</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">
+      Always prompt for passphrase on new file
+      <span class="sub">Override the default — ask every time.</span>
+    </div>
+    <div class="toggle off-disabled"></div>
+  </div>
+
+  <div class="section-label">Passphrase cache</div>
+
+  <div class="row col">
+    <div class="label">
+      Remember passphrases this session
+      <span class="sub">Tried automatically when opening other encrypted files.</span>
+    </div>
+    <div class="radio">
+      <label><input type="radio" name="cacheA"> None — always prompt</label>
+      <label><input type="radio" name="cacheA"> One (most recent)</label>
+      <label><input type="radio" name="cacheA" checked> All (default)</label>
+    </div>
+  </div>
+
+  <div class="section-label">This device</div>
+
+  <div class="row">
+    <div class="label">
+      Use Touch ID / Face ID to unlock
+      <span class="sub">Stores your passphrase in macOS Keychain, protected by biometric.</span>
+    </div>
+    <div class="toggle off-disabled"></div>
+  </div>
+
+  <div class="section-label">Quick actions</div>
+
+  <div class="row">
+    <div class="label">
+      Lock now
+      <span class="sub">Re-locks all open encrypted files and clears cached passphrases.</span>
+    </div>
+    <button class="btn">Lock now</button>
+  </div>
+
+  <div class="help-row">
+    <a href="#">Learn how Gutter encryption works →</a>
+  </div>
+</div>
+
+<!-- ============================== OPTION B: TABBED ============================== -->
+<div class="option-header">
+  <h2>Option B — Tabbed (sidebar)</h2>
+  <span class="desc">1Password / Slack-style. Categories on the left, one section visible at a time. Less visual noise but requires clicking around.</span>
+</div>
+
+<div class="tabbed">
+  <div class="tabs">
+    <div class="tab active">Defaults</div>
+    <div class="tab">Cache</div>
+    <div class="tab">This device</div>
+    <div class="tab">Actions</div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>Defaults for new files</h3>
+
+    <div class="row">
+      <div class="label">
+        Default new file format
+        <span class="sub">New files behavior.</span>
+      </div>
+      <div class="seg">
+        <button class="on">.md</button>
+        <button>.emd</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="label">
+        Default passphrase
+        <span class="sub">Reused silently for new encrypted files.</span>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <span class="pill set">Set</span>
+        <button class="btn warn">Change…</button>
+      </div>
+    </div>
+
+    <div class="row" style="border-bottom: 0;">
+      <div class="label">
+        Always prompt instead
+        <span class="sub">Ask every time, even with default set.</span>
+      </div>
+      <div class="toggle off-disabled"></div>
+    </div>
+
+    <p class="info-text" style="margin-top: 14px;">
+      Other settings live in the tabs on the left.
+    </p>
+  </div>
+</div>
+
+<!-- ============================== OPTION C: CARDS ============================== -->
+<div class="option-header">
+  <h2>Option C — Grouped cards</h2>
+  <span class="desc">Notion-style. Each concern is its own card. Strongest visual hierarchy. The destructive "Change passphrase" is its own card with explicit warning framing.</span>
+</div>
+
+<div class="cards">
+
+  <div class="card">
+    <div class="card-title">Default behavior</div>
+    <div class="row">
+      <div class="label">Default new file format</div>
+      <div class="seg">
+        <button class="on">.md</button>
+        <button>.emd</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top: 8px;">
+      <div class="label">Always prompt for passphrase on new files</div>
+      <div class="toggle off-disabled"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Passphrase cache</div>
+    <div class="radio" style="margin-top: 4px;">
+      <label><input type="radio" name="cacheC"> None</label>
+      <label><input type="radio" name="cacheC"> One</label>
+      <label><input type="radio" name="cacheC" checked> All <span class="info-text">(default)</span></label>
+    </div>
+    <p class="info-text" style="margin: 8px 0 0;">Cached passphrases are tried when you open encrypted files. Cleared on app quit or "Lock now."</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Default passphrase</div>
+    <div class="row" style="padding-top: 4px;">
+      <div class="label">
+        <span class="pill set">Set</span>
+        <span class="sub">Used silently when you create new encrypted files.</span>
+      </div>
+      <button class="btn warn">Change default…</button>
+    </div>
+    <p class="warn-text" style="margin: 8px 0 0;">⚠️ Changing this re-encrypts every existing encrypted file with the new passphrase. May take a moment for many files.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">This device</div>
+    <div class="row">
+      <div class="label">
+        Use Touch ID / Face ID
+        <span class="sub">Stores passphrase in macOS Keychain.</span>
+      </div>
+      <div class="toggle off-disabled"></div>
+    </div>
+    <p class="info-text" style="margin: 8px 0 0; opacity: 0.7;">Windows + Linux: not yet available.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Quick actions</div>
+    <div class="row">
+      <div class="label">Lock all open encrypted files now</div>
+      <button class="btn">Lock now</button>
+    </div>
+    <p class="info-text" style="margin: 8px 0 0;">Also clears cached passphrases. Same as menu / shortcut.</p>
+  </div>
+
+  <div class="card" style="background: transparent; border: 0; padding: 0; margin-top: 4px;">
+    <a href="#" style="color: var(--accent); font-size: 13px; text-decoration: none;">Learn how Gutter encryption works →</a>
+  </div>
+
+</div>
+
+</body>
+</html>

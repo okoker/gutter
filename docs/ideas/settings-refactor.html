@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Settings — full refactor (Option B applied to whole Preferences)</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --surface-2: #fafafa;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --subtle: #aeaeb2;
+    --border: #d2d2d7;
+    --border-strong: #86868b;
+    --accent: #0071e3;
+    --accent-bg: rgba(0, 113, 227, 0.10);
+    --warn: #b25b00;
+    --warn-bg: #fff4e5;
+    --danger: #d70015;
+    --danger-bg: #ffeae8;
+    --success: #34c759;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e;
+      --surface: #2c2c2e;
+      --surface-2: #242426;
+      --text: #f2f2f7;
+      --muted: #98989d;
+      --subtle: #636366;
+      --border: #3a3a3c;
+      --border-strong: #48484a;
+      --accent: #0a84ff;
+      --accent-bg: rgba(10, 132, 255, 0.18);
+      --warn: #ff9f0a;
+      --warn-bg: #3a2e1f;
+      --danger: #ff453a;
+      --danger-bg: #3a1f1d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    padding: 32px;
+    max-width: 1080px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+  .lede { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+
+  .panel-shell {
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 22px;
+    min-height: 460px;
+  }
+  .tabs {
+    background: var(--surface-2);
+    border-right: 1px solid var(--border);
+    padding: 12px 0;
+  }
+  .tab {
+    padding: 9px 18px;
+    font-size: 13px;
+    color: var(--text);
+    border-left: 2px solid transparent;
+  }
+  .tab.active {
+    background: var(--accent-bg);
+    color: var(--accent);
+    border-left-color: var(--accent);
+    font-weight: 500;
+  }
+  .tab.danger.active {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-left-color: var(--danger);
+  }
+  .tab + .tab { margin-top: 1px; }
+  .tab-divider { height: 1px; background: var(--border); margin: 8px 12px; }
+  .subtab-bar {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+  .subtab {
+    padding: 6px 12px;
+    font-size: 12.5px;
+    border-radius: 6px;
+    color: var(--muted);
+  }
+  .subtab.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 0 0 1px var(--border);
+    font-weight: 500;
+  }
+  .subtab.danger.active { color: var(--danger); }
+
+  .tab-content { padding: 20px 24px; }
+  .tab-content h3 { font-size: 15px; margin: 0 0 4px; font-weight: 600; }
+  .tab-content .section-desc { font-size: 12.5px; color: var(--muted); margin: 0 0 18px; }
+
+  .field {
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  .field:first-of-type { border-top: 0; padding-top: 4px; }
+  .field-label { font-size: 13px; font-weight: 500; }
+  .field-help { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .row {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 8px 0;
+  }
+  .row .label { font-size: 13px; color: var(--text); }
+
+  .toggle {
+    width: 36px; height: 22px; background: var(--border); border-radius: 100px; position: relative; flex-shrink: 0;
+  }
+  .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: 0.18s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .toggle.on { background: var(--success); }
+  .toggle.on::after { left: 16px; }
+
+  .seg {
+    display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 2px;
+  }
+  .seg button { background: transparent; border: 0; padding: 4px 10px; font-size: 12px; color: var(--text); border-radius: 5px; }
+  .seg button.on { background: var(--surface); box-shadow: 0 0 0 1px var(--border); font-weight: 600; }
+
+  .stepper {
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .stepper button { width: 24px; height: 24px; border: 1px solid var(--border); background: var(--surface); border-radius: 4px; color: var(--text); font-size: 14px; line-height: 1; }
+  .stepper .val { width: 56px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  .input {
+    padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px;
+  }
+
+  .swatch-row { display: flex; gap: 6px; align-items: center; }
+  .swatch { width: 22px; height: 22px; border-radius: 50%; }
+  .swatch.sel { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .btn {
+    padding: 6px 14px;
+    font-size: 13px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    border-radius: 6px;
+    color: var(--text);
+  }
+  .btn.warn { color: var(--warn); border-color: var(--warn); }
+  .btn.danger { color: white; background: var(--danger); border-color: var(--danger); }
+  .btn.primary { color: white; background: var(--accent); border-color: var(--accent); }
+  .btn.small { padding: 3px 10px; font-size: 12px; }
+
+  .pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 100px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+  .pill.set { background: var(--accent-bg); color: var(--accent); border-color: transparent; }
+  .pill.default { background: var(--success); color: white; border-color: transparent; }
+
+  .info-banner {
+    background: var(--surface-2); color: var(--muted);
+    padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-top: 12px;
+  }
+  .danger-banner {
+    background: var(--danger-bg); color: var(--danger);
+    padding: 12px 14px; border-radius: 8px; font-size: 12.5px; margin-top: 10px; border: 1px solid var(--danger);
+  }
+
+  /* Pulldown ("descriptive dropdown") */
+  .pulldown {
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    overflow: hidden;
+    max-width: 460px;
+  }
+  .pulldown .pulldown-trigger {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px;
+    cursor: default;
+  }
+  .pulldown .pulldown-trigger .selected {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .pulldown .pulldown-trigger .selected .name { font-size: 13.5px; font-weight: 600; }
+  .pulldown .pulldown-trigger .selected .desc { font-size: 12px; color: var(--muted); }
+  .pulldown .pulldown-trigger .chev { color: var(--muted); transition: 0.15s; }
+  .pulldown.open .pulldown-trigger { border-bottom: 1px solid var(--border); }
+  .pulldown.open .chev { transform: rotate(180deg); }
+  .pulldown .pulldown-menu { display: none; }
+  .pulldown.open .pulldown-menu { display: block; }
+  .pulldown .pulldown-option {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: default;
+    background: var(--surface);
+  }
+  .pulldown .pulldown-option:last-child { border-bottom: 0; }
+  .pulldown .pulldown-option:hover { background: var(--surface-2); }
+  .pulldown .pulldown-option.checked { background: var(--accent-bg); }
+  .pulldown .pulldown-option .opt-title { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+  .pulldown .pulldown-option .opt-help { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .pulldown .pulldown-option .check { color: var(--accent); }
+
+  /* Passphrase entries */
+  .pp-list { margin-top: 10px; }
+  .pp-entry {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px;
+  }
+  .pp-entry .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .pp-entry .name { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .pp-entry .folder { font-size: 11.5px; color: var(--muted); font-family: ui-monospace, monospace; }
+  .pp-entry .actions { display: flex; gap: 6px; }
+
+  .help-list { margin: 0; padding: 0; list-style: none; }
+  .help-list li { padding: 12px 0; border-top: 1px solid var(--border); font-size: 13px; }
+  .help-list li:first-child { border-top: 0; }
+  .help-list a { color: var(--accent); text-decoration: none; }
+  .help-list .qhelp { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  .num-input {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 10px; font-size: 13px;
+  }
+  .num-input input { width: 50px; border: 0; background: transparent; color: var(--text); font: inherit; text-align: right; }
+
+  .pageheader { font-size: 13px; color: var(--muted); margin: 28px 0 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .modal-cap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .modal-cap b { color: var(--text); }
+
+  .nest-note {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: var(--accent-bg);
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<h1>Refactored Settings — full structure</h1>
+<p class="lede">Top-level tabs: Appearance · Editor · Workspace · Comments · General · Encryption · Help. Encryption has 4 sub-tabs (Defaults, Passphrases, Cache, Danger zone). Pulldown component for descriptive options. Each panel below shows one tab active so you can see all of them.</p>
+
+<div class="modal-cap">
+  <b>Modal sizing:</b> centered dialog, <b>690×550px</b> (replaces the current top-right anchored popover). Sidebar 170px, content 520px.
+</div>
+
+<!-- ============================== APPEARANCE ============================== -->
+<div class="pageheader">Top-level Tab 1 — Appearance (existing content)</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab active">Appearance</div>
+    <div class="tab">Editor</div>
+    <div class="tab">Workspace</div>
+    <div class="tab">Comments</div>
+    <div class="tab-divider"></div>
+    <div class="tab">General</div>
+    <div class="tab">Encryption</div>
+    <div class="tab-divider"></div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>Appearance</h3>
+    <p class="section-desc">Look and feel of the editor.</p>
+
+    <div class="field"><div class="row"><span class="label">Theme</span>
+      <div class="seg"><button>Light</button><button>Dark</button><button class="on">System</button></div>
+    </div></div>
+    <div class="field"><div class="row"><span class="label">Accent color</span>
+      <div class="swatch-row">
+        <div class="swatch" style="background: #6366f1"></div>
+        <div class="swatch" style="background: #3b82f6"></div>
+        <div class="swatch" style="background: #8b5cf6"></div>
+        <div class="swatch" style="background: #f43f5e"></div>
+        <div class="swatch" style="background: #f97316"></div>
+        <div class="swatch" style="background: #22c55e"></div>
+        <div class="swatch sel" style="background: #14b8a6"></div>
+      </div>
+    </div></div>
+    <div class="field"><div class="row"><span class="label">Editor font size</span>
+      <div class="stepper"><button>−</button><span class="val">16px</span><button>+</button></div>
+    </div></div>
+    <div class="field"><div class="row"><span class="label">Editor font</span>
+      <div class="seg"><button>Serif</button><button class="on">Sans</button><button>Mono</button></div>
+    </div></div>
+    <div class="field"><div class="row"><span class="label">Editor width</span>
+      <div class="seg"><button>Narrow</button><button>Medium</button><button>Wide</button><button class="on">Full</button></div>
+    </div></div>
+    <div class="field"><div class="row"><span class="label">Line height</span>
+      <div class="seg"><button class="on">Compact</button><button>Comfy</button><button>Spacious</button></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ============================== EDITOR ============================== -->
+<div class="pageheader">Top-level Tab 2 — Editor (existing content)</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Appearance</div>
+    <div class="tab active">Editor</div>
+    <div class="tab">Workspace</div>
+    <div class="tab">Comments</div>
+    <div class="tab-divider"></div>
+    <div class="tab">General</div>
+    <div class="tab">Encryption</div>
+    <div class="tab-divider"></div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>Editor</h3>
+    <p class="section-desc">Behavior while you write.</p>
+
+    <div class="field"><div class="row"><span class="label">Spell check</span>
+      <div class="toggle on"></div>
+    </div></div>
+    <div class="field"><div class="row"><span class="label">Auto-save</span>
+      <div class="seg"><button>Off</button><button>1s</button><button class="on">2s</button><button>5s</button><button>10s</button></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ============================== WORKSPACE ============================== -->
+<div class="pageheader">Top-level Tab 3 — Workspace</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Appearance</div>
+    <div class="tab">Editor</div>
+    <div class="tab active">Workspace</div>
+    <div class="tab">Comments</div>
+    <div class="tab-divider"></div>
+    <div class="tab">General</div>
+    <div class="tab">Encryption</div>
+    <div class="tab-divider"></div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>Workspace</h3>
+    <p class="section-desc">How the workspace persists across launches.</p>
+
+    <div class="field"><div class="row"><span class="label">Restore workspace on launch</span>
+      <div class="toggle on"></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ============================== COMMENTS ============================== -->
+<div class="pageheader">Top-level Tab 4 — Comments</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Appearance</div>
+    <div class="tab">Editor</div>
+    <div class="tab">Workspace</div>
+    <div class="tab active">Comments</div>
+    <div class="tab-divider"></div>
+    <div class="tab">General</div>
+    <div class="tab">Encryption</div>
+    <div class="tab-divider"></div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>Comments</h3>
+    <p class="section-desc">Defaults for new comments.</p>
+
+    <div class="field"><div class="row"><span class="label">Default author name</span>
+      <input class="input" type="text" value="AOK" style="width: 160px;">
+    </div></div>
+  </div>
+</div>
+
+<!-- ============================== GENERAL ============================== -->
+<div class="pageheader">Top-level Tab 5 — General (NEW — security-adjacent app behaviors)</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Appearance</div>
+    <div class="tab">Editor</div>
+    <div class="tab">Workspace</div>
+    <div class="tab">Comments</div>
+    <div class="tab-divider"></div>
+    <div class="tab active">General</div>
+    <div class="tab">Encryption</div>
+    <div class="tab-divider"></div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>General</h3>
+    <p class="section-desc">Background app behaviors. Apply across all files, encrypted or not.</p>
+
+    <div class="field"><div class="row"><span class="label">Auto-lock when app is idle</span>
+      <span class="num-input">After <input type="number" value="10"> minutes</span>
+    </div>
+      <div class="field-help">Set to 0 to disable. Locks all open encrypted files and clears cached passphrases.</div>
+    </div>
+
+    <div class="field"><div class="row"><span class="label">Hide content from app switcher / Mission Control</span>
+      <div class="toggle on"></div>
+    </div></div>
+
+    <div class="field"><div class="row"><span class="label">Hide encrypted content from screenshots</span>
+      <div class="toggle on"></div>
+    </div></div>
+
+    <div class="field"><div class="row"><span class="label">Use Touch ID / Face ID to unlock encrypted files</span>
+      <div class="toggle"></div>
+    </div>
+      <div class="field-help">macOS only. On Windows / Linux this option is hidden.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== ENCRYPTION — DEFAULTS ============================== -->
+<div class="pageheader">Top-level Tab 6 — Encryption · sub-tab: Defaults</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Appearance</div>
+    <div class="tab">Editor</div>
+    <div class="tab">Workspace</div>
+    <div class="tab">Comments</div>
+    <div class="tab-divider"></div>
+    <div class="tab">General</div>
+    <div class="tab active">Encryption</div>
+    <div class="tab-divider"></div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <div class="subtab-bar">
+      <div class="subtab active">Defaults</div>
+      <div class="subtab">Passphrases</div>
+      <div class="subtab">Cache</div>
+      <div class="subtab danger">Danger zone</div>
+    </div>
+
+    <h3>Defaults for new files</h3>
+    <p class="section-desc">When you create a new file, what happens.</p>
+
+    <div class="field">
+      <div class="field-label">Default new file format</div>
+      <div class="field-help" style="margin-bottom: 10px;">When you create a new file, should it be plain or encrypted by default?</div>
+      <!-- PULLDOWN — closed -->
+      <div class="pulldown">
+        <div class="pulldown-trigger">
+          <div class="selected">
+            <span class="name">Unencrypted (.md)</span>
+            <span class="desc">New files start as plain markdown. Click the lock icon on a file to encrypt it.</span>
+          </div>
+          <span class="chev">▼</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="field"><div class="row">
+      <span class="label">Always pick passphrase from list when creating an encrypted file</span>
+      <div class="toggle"></div>
+    </div>
+      <div class="field-help">Override silent default. Show the passphrase picker every time.</div>
+    </div>
+
+    <div class="nest-note">Touch ID, auto-lock, and content-hiding toggles all live in <b>General</b> (the previous tab) — they aren't encryption-specific.</div>
+  </div>
+</div>
+
+<!-- ============================== ENCRYPTION — PULLDOWN OPEN STATE ============================== -->
+<div class="pageheader">Same tab — pulldown OPEN state (so you can see what it looks like expanded)</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Appearance</div>
+    <div class="tab">Editor</div>
+    <div class="tab">Workspace</div>
+    <div class="tab">Comments</div>
+    <div class="tab-divider"></div>
+    <div class="tab">General</div>
+    <div class="tab active">Encryption</div>
+    <div class="tab-divider"></div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <div class="subtab-bar">
+      <div class="subtab active">Defaults</div>
+      <div class="subtab">Passphrases</div>
+      <div class="subtab">Cache</div>
+      <div class="subtab danger">Danger zone</div>
+    </div>
+
+    <h3>Defaults for new files</h3>
+
+    <div class="field">
+      <div class="field-label">Default new file format</div>
+      <div class="field-help" style="margin-bottom: 10px;">When you create a new file, should it be plain or encrypted by default?</div>
+
+      <!-- PULLDOWN — open -->
+      <div class="pulldown open">
+        <div class="pulldown-trigger">
+          <div class="selected">
+            <span class="name">Unencrypted (.md)</span>
+            <span class="desc">New files start as plain markdown. Click the lock icon on a file to encrypt it.</span>
+          </div>
+          <span class="chev">▼</span>
+        </div>
+        <div class="pulldown-menu">
+          <div class="pulldown-option checked">
+            <div class="opt-title">Unencrypted (.md) <span class="check">✓</span></div>
+            <div class="opt-help">New files start as plain markdown. Click the lock icon on a file to encrypt it. (Default.)</div>
+          </div>
+          <div class="pulldown-option">
+            <div class="opt-title">Encrypted (.emd)</div>
+            <div class="opt-help">New files default to encrypted, using the appropriate passphrase (folder-claimed if available, else default). You can still decrypt individual files manually.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== ENCRYPTION — PASSPHRASES ============================== -->
+<div class="pageheader">Encryption · sub-tab: Passphrases (now also holds strength requirements)</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Appearance</div>
+    <div class="tab">Editor</div>
+    <div class="tab">Workspace</div>
+    <div class="tab">Comments</div>
+    <div class="tab-divider"></div>
+    <div class="tab">General</div>
+    <div class="tab active">Encryption</div>
+    <div class="tab-divider"></div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <div class="subtab-bar">
+      <div class="subtab">Defaults</div>
+      <div class="subtab active">Passphrases</div>
+      <div class="subtab">Cache</div>
+      <div class="subtab danger">Danger zone</div>
+    </div>
+
+    <h3>Saved passphrases</h3>
+    <p class="section-desc">Define named passphrases. Each can claim one folder; files in that folder default to that passphrase.</p>
+
+    <div class="pp-list">
+      <div class="pp-entry">
+        <div class="meta">
+          <div class="name">Personal <span class="pill default">default</span></div>
+          <div class="folder">~/Documents/notes/</div>
+        </div>
+        <div class="actions">
+          <button class="btn small">Edit</button>
+          <button class="btn small" style="color: var(--danger); border-color: var(--danger);">Delete</button>
+        </div>
+      </div>
+      <div class="pp-entry">
+        <div class="meta">
+          <div class="name">Work</div>
+          <div class="folder">~/Code/work-notes/</div>
+        </div>
+        <div class="actions">
+          <button class="btn small">Edit</button>
+          <button class="btn small" style="color: var(--danger); border-color: var(--danger);">Delete</button>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top: 12px;"><button class="btn primary">+ Add passphrase</button></div>
+
+    <div class="field" style="margin-top: 22px;">
+      <div class="field-label">Passphrase strength requirements</div>
+      <div class="field-help">Enforced when adding or changing a saved passphrase, and when typing one-off passphrases.</div>
+      <div style="margin-top: 10px; display: flex; gap: 14px;">
+        <span class="num-input">Min characters <input type="number" value="12"></span>
+        <span class="num-input">Min entropy bits <input type="number" value="50"></span>
+      </div>
+      <div class="field-help" style="margin-top: 8px;">Diceware passphrases automatically meet these (6 words ≈ 77 bits).</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== ENCRYPTION — CACHE ============================== -->
+<div class="pageheader">Encryption · sub-tab: Cache (also pulldown)</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Appearance</div>
+    <div class="tab">Editor</div>
+    <div class="tab">Workspace</div>
+    <div class="tab">Comments</div>
+    <div class="tab-divider"></div>
+    <div class="tab">General</div>
+    <div class="tab active">Encryption</div>
+    <div class="tab-divider"></div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <div class="subtab-bar">
+      <div class="subtab">Defaults</div>
+      <div class="subtab">Passphrases</div>
+      <div class="subtab active">Cache</div>
+      <div class="subtab danger">Danger zone</div>
+    </div>
+
+    <h3>Passphrase cache</h3>
+    <p class="section-desc">When you open an encrypted file, the app tries any cached passphrase to unlock it automatically.</p>
+
+    <div class="field">
+      <div class="field-label">Remember entered passphrases for this session</div>
+      <div class="pulldown" style="margin-top: 10px;">
+        <div class="pulldown-trigger">
+          <div class="selected">
+            <span class="name">Remember all this session</span>
+            <span class="desc">Try every entered passphrase when opening files. Smoothest experience.</span>
+          </div>
+          <span class="chev">▼</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-banner">Cache is in-memory only. Cleared when the app quits, or when you click <b>Lock now</b> from the menu / status bar.</div>
+  </div>
+</div>
+
+<!-- ============================== ENCRYPTION — DANGER ZONE ============================== -->
+<div class="pageheader">Encryption · sub-tab: Danger zone</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Appearance</div>
+    <div class="tab">Editor</div>
+    <div class="tab">Workspace</div>
+    <div class="tab">Comments</div>
+    <div class="tab-divider"></div>
+    <div class="tab">General</div>
+    <div class="tab active">Encryption</div>
+    <div class="tab-divider"></div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <div class="subtab-bar">
+      <div class="subtab">Defaults</div>
+      <div class="subtab">Passphrases</div>
+      <div class="subtab">Cache</div>
+      <div class="subtab danger active">Danger zone</div>
+    </div>
+
+    <h3 style="color: var(--danger);">Danger zone</h3>
+    <p class="section-desc">Destructive operations. Each requires explicit confirmation.</p>
+
+    <div class="field">
+      <div class="field-label">Remove all encryption from this workspace</div>
+      <div class="field-help">Decrypts every <code>.emd</code> file back to plain <code>.md</code>. Files become readable by any text editor.</div>
+      <div class="danger-banner">⚠️ Irreversible by the app. Files will be readable on disk and any sync target (iCloud, Dropbox, GitHub) immediately after this completes.</div>
+      <div style="margin-top: 12px;"><button class="btn danger">Remove all encryption…</button></div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">Delete all saved passphrases</div>
+      <div class="field-help">Removes the named passphrase address book. Encrypted files stay encrypted; you'll need to re-enter passphrases manually.</div>
+      <div style="margin-top: 12px;"><button class="btn danger">Delete all passphrases…</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== HELP ============================== -->
+<div class="pageheader">Top-level Tab 7 — Help (now app-wide, not encryption-only)</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Appearance</div>
+    <div class="tab">Editor</div>
+    <div class="tab">Workspace</div>
+    <div class="tab">Comments</div>
+    <div class="tab-divider"></div>
+    <div class="tab">General</div>
+    <div class="tab">Encryption</div>
+    <div class="tab-divider"></div>
+    <div class="tab active">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>Help &amp; reference</h3>
+    <p class="section-desc">Plain-language explanations across the app.</p>
+
+    <ul class="help-list">
+      <li><a href="#">Getting started</a><div class="qhelp">First steps after install.</div></li>
+      <li><a href="#">Keyboard shortcuts</a><div class="qhelp">Full reference card.</div></li>
+      <li><a href="#">Comments — how the three-file model works</a><div class="qhelp">.md + .comments.json + .comments.md companion.</div></li>
+      <li><a href="#">Multi-root workspace</a><div class="qhelp">Add Folder, Close Folder, restore on launch.</div></li>
+      <li><a href="#">How encryption works</a><div class="qhelp">File format, key derivation, what's protected vs not.</div></li>
+      <li><a href="#">What is Diceware?</a><div class="qhelp">Random word selection from a 7,776-word list.</div></li>
+      <li><a href="#">What if I forget my passphrase?</a><div class="qhelp">Honest answer: the file is gone. There is no recovery.</div></li>
+      <li><a href="#">Sharing encrypted files with others</a><div class="qhelp">Phase 1: out-of-band passphrase. Phase 2: multi-recipient.</div></li>
+      <li><a href="#">Algorithms used</a><div class="qhelp">XChaCha20-Poly1305 + Argon2id + zstd.</div></li>
+      <li><a href="#">Report a bug / request a feature</a><div class="qhelp">Link to GitHub issues.</div></li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

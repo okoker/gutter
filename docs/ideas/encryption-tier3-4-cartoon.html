@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Encryption — Alice & Bob walkthrough</title>
+<style>
+  body {
+    margin: 0;
+    background: #faf6ee;
+    color: #2c2a26;
+    font: 15px/1.5 "Comic Sans MS", "Marker Felt", "Bradley Hand", system-ui, sans-serif;
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  .lede { color: #6e6a60; margin: 0 0 28px; font-size: 14px; }
+
+  .strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 18px;
+  }
+  .panel {
+    background: #fffdf6;
+    border: 2px solid #2c2a26;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 4px 4px 0 #2c2a26;
+    position: relative;
+  }
+  .panel .num {
+    position: absolute;
+    top: -14px; left: -14px;
+    width: 32px; height: 32px;
+    background: #ffe680;
+    border: 2px solid #2c2a26;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+  }
+  .panel .title {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .scene {
+    background: #f5efe0;
+    border: 1.5px dashed #b8b0a0;
+    border-radius: 8px;
+    padding: 14px;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .scene svg { width: 100%; height: auto; max-height: 180px; }
+  .caption {
+    margin-top: 10px;
+    font-size: 13px;
+    text-align: center;
+    color: #4a4a40;
+    min-height: 36px;
+  }
+
+  /* Legend */
+  .legend {
+    margin-top: 32px;
+    background: #fffdf6;
+    border: 2px solid #2c2a26;
+    border-radius: 14px;
+    padding: 16px 22px;
+    box-shadow: 4px 4px 0 #2c2a26;
+  }
+  .legend h3 { margin: 0 0 8px; font-size: 14px; }
+  .legend-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    font-size: 13px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .legend-item .icon {
+    width: 36px; height: 36px;
+    background: #f5efe0;
+    border: 1.5px solid #b8b0a0;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  /* SVG character defaults */
+  text { font-family: "Comic Sans MS", "Marker Felt", system-ui, sans-serif; }
+  .label { font-size: 12px; fill: #2c2a26; font-weight: bold; }
+  .small { font-size: 10px; fill: #4a4a40; }
+  .keycolor-ws { fill: #5b8def; }
+  .keycolor-alice { fill: #c084fc; }
+  .keycolor-bob { fill: #f59e0b; }
+</style>
+</head>
+<body>
+
+<h1>Encryption — the cartoon version</h1>
+<p class="lede">Tier 3 + Tier 4 · Alice writes, Bob reads, Eve eavesdrops, signature proves who wrote it.</p>
+
+<div class="strip">
+
+  <!-- PANEL 1 -->
+  <div class="panel">
+    <div class="num">1</div>
+    <div class="title">Setup</div>
+    <div class="scene">
+      <svg viewBox="0 0 280 180">
+        <!-- Alice -->
+        <circle cx="50" cy="55" r="18" fill="#fff" stroke="#2c2a26" stroke-width="2"/>
+        <circle cx="44" cy="52" r="2" fill="#2c2a26"/>
+        <circle cx="56" cy="52" r="2" fill="#2c2a26"/>
+        <path d="M44 60 Q50 64 56 60" fill="none" stroke="#2c2a26" stroke-width="1.5"/>
+        <path d="M50 73 L50 110 M50 85 L35 100 M50 85 L65 100 M50 110 L40 130 M50 110 L60 130"
+              stroke="#2c2a26" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <text x="50" y="155" text-anchor="middle" class="label">Alice</text>
+
+        <!-- Vault in middle -->
+        <rect x="115" y="50" width="50" height="60" rx="4" fill="#e8d8a0" stroke="#2c2a26" stroke-width="2"/>
+        <circle cx="140" cy="80" r="8" fill="#fff" stroke="#2c2a26" stroke-width="1.5"/>
+        <line x1="140" y1="80" x2="140" y2="90" stroke="#2c2a26" stroke-width="1.5"/>
+        <text x="140" y="135" text-anchor="middle" class="label">Workspace</text>
+
+        <!-- Bob -->
+        <rect x="212" y="40" width="36" height="36" rx="6" fill="#fff" stroke="#2c2a26" stroke-width="2"/>
+        <circle cx="222" cy="55" r="2.5" fill="#2c2a26"/>
+        <circle cx="238" cy="55" r="2.5" fill="#2c2a26"/>
+        <line x1="225" y1="65" x2="235" y2="65" stroke="#2c2a26" stroke-width="1.5"/>
+        <line x1="220" y1="40" x2="220" y2="34" stroke="#2c2a26" stroke-width="1.5"/>
+        <line x1="240" y1="40" x2="240" y2="34" stroke="#2c2a26" stroke-width="1.5"/>
+        <line x1="230" y1="76" x2="230" y2="110" stroke="#2c2a26" stroke-width="2"/>
+        <text x="230" y="155" text-anchor="middle" class="label">Bob</text>
+
+        <!-- Keys held by each -->
+        <text x="50" y="170" text-anchor="middle" class="small">🔑 ws + ✍️ alice</text>
+        <text x="230" y="170" text-anchor="middle" class="small">🔑 ws + ✍️ bob</text>
+      </svg>
+    </div>
+    <div class="caption">Both share the workspace passphrase. Each has their own signing key.</div>
+  </div>
+
+  <!-- PANEL 2 -->
+  <div class="panel">
+    <div class="num">2</div>
+    <div class="title">Alice writes</div>
+    <div class="scene">
+      <svg viewBox="0 0 280 180">
+        <!-- Alice -->
+        <circle cx="60" cy="60" r="20" fill="#fff" stroke="#2c2a26" stroke-width="2"/>
+        <circle cx="53" cy="57" r="2" fill="#2c2a26"/>
+        <circle cx="67" cy="57" r="2" fill="#2c2a26"/>
+        <path d="M53 65 Q60 70 67 65" fill="none" stroke="#2c2a26" stroke-width="1.5"/>
+        <path d="M60 80 L60 130 M60 95 L40 110 M60 95 L80 110" stroke="#2c2a26" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+        <!-- Speech bubble -->
+        <path d="M120 30 L260 30 L260 110 L160 110 L140 130 L150 110 L120 110 Z"
+              fill="#fff" stroke="#2c2a26" stroke-width="2"/>
+        <text x="135" y="55" class="small" font-family="ui-monospace, monospace">## Meeting</text>
+        <text x="135" y="72" class="small" font-family="ui-monospace, monospace">- Q1 plans...</text>
+        <text x="135" y="89" class="small" font-family="ui-monospace, monospace">- New hires</text>
+
+        <text x="60" y="155" text-anchor="middle" class="label">Alice</text>
+      </svg>
+    </div>
+    <div class="caption">She types markdown into the editor.</div>
+  </div>
+
+  <!-- PANEL 3 -->
+  <div class="panel">
+    <div class="num">3</div>
+    <div class="title">Encrypt + sign</div>
+    <div class="scene">
+      <svg viewBox="0 0 280 180">
+        <!-- Plaintext -->
+        <rect x="20" y="60" width="50" height="60" rx="4" fill="#fff" stroke="#2c2a26" stroke-width="2"/>
+        <line x1="28" y1="75" x2="62" y2="75" stroke="#2c2a26" stroke-width="1"/>
+        <line x1="28" y1="85" x2="62" y2="85" stroke="#2c2a26" stroke-width="1"/>
+        <line x1="28" y1="95" x2="50" y2="95" stroke="#2c2a26" stroke-width="1"/>
+        <text x="45" y="135" text-anchor="middle" class="small">.md</text>
+
+        <!-- Arrow -->
+        <path d="M75 90 L100 90" stroke="#2c2a26" stroke-width="2" fill="none" marker-end="url(#a3)"/>
+
+        <!-- Machine (gear) -->
+        <circle cx="135" cy="90" r="28" fill="#ffe680" stroke="#2c2a26" stroke-width="2"/>
+        <text x="135" y="86" text-anchor="middle" font-size="22">⚙️</text>
+        <text x="135" y="135" text-anchor="middle" class="small">zstd → AEAD → sign</text>
+
+        <!-- Arrow -->
+        <path d="M170 90 L195 90" stroke="#2c2a26" stroke-width="2" fill="none" marker-end="url(#a3)"/>
+
+        <!-- Sealed envelope -->
+        <rect x="200" y="60" width="60" height="50" rx="2" fill="#e8d8a0" stroke="#2c2a26" stroke-width="2"/>
+        <path d="M200 60 L230 90 L260 60" fill="none" stroke="#2c2a26" stroke-width="2"/>
+        <circle cx="230" cy="80" r="8" fill="#c084fc" stroke="#2c2a26" stroke-width="1.5"/>
+        <text x="230" y="84" text-anchor="middle" font-size="10" font-weight="bold">A</text>
+        <text x="230" y="135" text-anchor="middle" class="small">.gmd (sealed)</text>
+
+        <defs>
+          <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#2c2a26"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+    <div class="caption">Compressed, encrypted with workspace key, signed with Alice's key. Wax seal "A".</div>
+  </div>
+
+  <!-- PANEL 4 -->
+  <div class="panel">
+    <div class="num">4</div>
+    <div class="title">In transit / at rest</div>
+    <div class="scene">
+      <svg viewBox="0 0 280 180">
+        <!-- Sealed envelope center -->
+        <rect x="100" y="40" width="80" height="60" rx="3" fill="#e8d8a0" stroke="#2c2a26" stroke-width="2"/>
+        <path d="M100 40 L140 78 L180 40" fill="none" stroke="#2c2a26" stroke-width="2"/>
+        <circle cx="140" cy="68" r="10" fill="#c084fc" stroke="#2c2a26" stroke-width="1.5"/>
+        <text x="140" y="73" text-anchor="middle" font-size="12" font-weight="bold">A</text>
+
+        <!-- Eve -->
+        <circle cx="140" cy="140" r="18" fill="#fff" stroke="#2c2a26" stroke-width="2"/>
+        <circle cx="133" cy="138" r="2.5" fill="#2c2a26"/>
+        <circle cx="147" cy="138" r="2.5" fill="#2c2a26"/>
+        <path d="M132 148 Q140 144 148 148" fill="none" stroke="#2c2a26" stroke-width="1.5"/>
+
+        <!-- Eyes squinting -->
+        <text x="160" y="135" class="small" font-size="14">👁️</text>
+        <text x="180" y="155" class="small">¿?</text>
+
+        <text x="140" y="175" text-anchor="middle" class="label">Eve</text>
+        <text x="140" y="20" text-anchor="middle" class="label">.gmd</text>
+      </svg>
+    </div>
+    <div class="caption">Eve can see the file. She sees only ciphertext. No content, no edits possible undetected.</div>
+  </div>
+
+  <!-- PANEL 5 -->
+  <div class="panel">
+    <div class="num">5</div>
+    <div class="title">Bob opens it</div>
+    <div class="scene">
+      <svg viewBox="0 0 280 180">
+        <!-- Bob -->
+        <rect x="20" y="50" width="40" height="40" rx="6" fill="#fff" stroke="#2c2a26" stroke-width="2"/>
+        <circle cx="32" cy="65" r="2.5" fill="#2c2a26"/>
+        <circle cx="48" cy="65" r="2.5" fill="#2c2a26"/>
+        <line x1="33" y1="78" x2="47" y2="78" stroke="#2c2a26" stroke-width="1.5"/>
+        <line x1="28" y1="50" x2="28" y2="42" stroke="#2c2a26" stroke-width="1.5"/>
+        <line x1="52" y1="50" x2="52" y2="42" stroke="#2c2a26" stroke-width="1.5"/>
+        <text x="40" y="108" text-anchor="middle" class="label">Bob</text>
+
+        <!-- Bob holding workspace key -->
+        <text x="40" y="130" text-anchor="middle" font-size="20">🔑</text>
+        <text x="40" y="148" text-anchor="middle" class="small">ws key</text>
+
+        <!-- Arrow -->
+        <path d="M75 90 L110 90" stroke="#2c2a26" stroke-width="2" fill="none" marker-end="url(#a5)"/>
+
+        <!-- Sealed envelope -->
+        <rect x="120" y="60" width="50" height="40" rx="2" fill="#e8d8a0" stroke="#2c2a26" stroke-width="2"/>
+        <path d="M120 60 L145 85 L170 60" fill="none" stroke="#2c2a26" stroke-width="2"/>
+
+        <!-- Arrow becomes -->
+        <path d="M180 90 L210 90" stroke="#2c2a26" stroke-width="2" fill="none" marker-end="url(#a5)"/>
+
+        <!-- Open document -->
+        <rect x="220" y="55" width="50" height="55" rx="3" fill="#fff" stroke="#2c2a26" stroke-width="2"/>
+        <line x1="228" y1="68" x2="262" y2="68" stroke="#2c2a26" stroke-width="1"/>
+        <line x1="228" y1="78" x2="262" y2="78" stroke="#2c2a26" stroke-width="1"/>
+        <line x1="228" y1="88" x2="262" y2="88" stroke="#2c2a26" stroke-width="1"/>
+        <line x1="228" y1="98" x2="245" y2="98" stroke="#2c2a26" stroke-width="1"/>
+        <text x="245" y="135" text-anchor="middle" class="small">readable</text>
+
+        <defs>
+          <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#2c2a26"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+    <div class="caption">Bob has the workspace passphrase. Argon2id derives the key, unwraps CEK, decrypts body, decompresses.</div>
+  </div>
+
+  <!-- PANEL 6 -->
+  <div class="panel">
+    <div class="num">6</div>
+    <div class="title">"From Alice ✓"</div>
+    <div class="scene">
+      <svg viewBox="0 0 280 180">
+        <!-- Bob holding the document -->
+        <rect x="60" y="40" width="36" height="36" rx="6" fill="#fff" stroke="#2c2a26" stroke-width="2"/>
+        <circle cx="71" cy="55" r="2.5" fill="#2c2a26"/>
+        <circle cx="85" cy="55" r="2.5" fill="#2c2a26"/>
+        <path d="M70 65 Q78 70 86 65" fill="none" stroke="#2c2a26" stroke-width="1.5"/>
+        <line x1="68" y1="40" x2="68" y2="32" stroke="#2c2a26" stroke-width="1.5"/>
+        <line x1="88" y1="40" x2="88" y2="32" stroke="#2c2a26" stroke-width="1.5"/>
+
+        <!-- Document -->
+        <rect x="50" y="85" width="56" height="55" rx="3" fill="#fff" stroke="#2c2a26" stroke-width="2"/>
+        <line x1="58" y1="98" x2="98" y2="98" stroke="#2c2a26" stroke-width="1"/>
+        <line x1="58" y1="108" x2="98" y2="108" stroke="#2c2a26" stroke-width="1"/>
+        <circle cx="78" cy="125" r="8" fill="#c084fc" stroke="#2c2a26" stroke-width="1.5"/>
+        <text x="78" y="129" text-anchor="middle" font-size="10" font-weight="bold">A</text>
+
+        <!-- Speech bubble -->
+        <path d="M135 60 L260 60 L260 110 L165 110 L155 125 L160 110 L135 110 Z"
+              fill="#fff" stroke="#2c2a26" stroke-width="2"/>
+        <text x="197" y="80" text-anchor="middle" class="label">Signature</text>
+        <text x="197" y="98" text-anchor="middle" class="label">checks out ✓</text>
+
+        <text x="78" y="158" text-anchor="middle" class="small">"by Alice"</text>
+      </svg>
+    </div>
+    <div class="caption">Alice's signing key public part is in the file. Bob verifies. Editor shows "by Alice ✓" badge.</div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <h3>Cast & symbols</h3>
+  <div class="legend-grid">
+    <div class="legend-item"><div class="icon">👤</div><span><b>Alice</b> — the writer (Omer in the real app)</span></div>
+    <div class="legend-item"><div class="icon">🤖</div><span><b>Bob</b> — the reader (Claude / agent)</span></div>
+    <div class="legend-item"><div class="icon">👁️</div><span><b>Eve</b> — eavesdropper / disk thief</span></div>
+    <div class="legend-item"><div class="icon">🗄️</div><span><b>Workspace</b> — shared passphrase</span></div>
+    <div class="legend-item"><div class="icon">🔑</div><span><b>Workspace key</b> — same for Alice & Bob</span></div>
+    <div class="legend-item"><div class="icon">✍️</div><span><b>Signing key</b> — unique to each author</span></div>
+    <div class="legend-item"><div class="icon">⚙️</div><span><b>Crypto pipeline</b> — compress, encrypt, sign</span></div>
+    <div class="legend-item"><div class="icon">🔐</div><span><b>.gmd</b> — sealed file with wax seal "A"</span></div>
+  </div>
+</div>
+
+</body>
+</html>

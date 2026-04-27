@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Encryption Settings — Option B (6 tabs)</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --surface-2: #fafafa;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --subtle: #aeaeb2;
+    --border: #d2d2d7;
+    --border-strong: #86868b;
+    --accent: #0071e3;
+    --accent-bg: rgba(0, 113, 227, 0.10);
+    --warn: #b25b00;
+    --warn-bg: #fff4e5;
+    --danger: #d70015;
+    --danger-bg: #ffeae8;
+    --success: #34c759;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e;
+      --surface: #2c2c2e;
+      --surface-2: #242426;
+      --text: #f2f2f7;
+      --muted: #98989d;
+      --subtle: #636366;
+      --border: #3a3a3c;
+      --border-strong: #48484a;
+      --accent: #0a84ff;
+      --accent-bg: rgba(10, 132, 255, 0.18);
+      --warn: #ff9f0a;
+      --warn-bg: #3a2e1f;
+      --danger: #ff453a;
+      --danger-bg: #3a1f1d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    padding: 32px;
+    max-width: 1080px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+  .lede { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+
+  .panel-shell {
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 22px;
+  }
+  .tabs {
+    background: var(--surface-2);
+    border-right: 1px solid var(--border);
+    padding: 12px 0;
+  }
+  .tab {
+    padding: 9px 18px;
+    font-size: 13px;
+    color: var(--text);
+    border-left: 2px solid transparent;
+  }
+  .tab.active {
+    background: var(--accent-bg);
+    color: var(--accent);
+    border-left-color: var(--accent);
+    font-weight: 500;
+  }
+  .tab.danger.active {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-left-color: var(--danger);
+  }
+  .tab + .tab { margin-top: 1px; }
+
+  .tab-content { padding: 20px 24px; min-height: 380px; }
+  .tab-content h3 { font-size: 15px; margin: 0 0 4px; font-weight: 600; }
+  .tab-content .section-desc { font-size: 12.5px; color: var(--muted); margin: 0 0 18px; }
+
+  .field {
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  .field:first-of-type { border-top: 0; padding-top: 4px; }
+  .field-label { font-size: 13px; font-weight: 500; }
+  .field-help { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .radio-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .radio-list label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .radio-list label.checked {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+  }
+  .radio-list input { margin-top: 2px; accent-color: var(--accent); }
+  .radio-list .opt-title { font-size: 13px; font-weight: 500; }
+  .radio-list .opt-help { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .toggle-row {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-top: 10px;
+  }
+  .toggle-row .toggle-label .field-label { display: block; }
+  .toggle {
+    width: 36px; height: 22px; background: var(--border); border-radius: 100px; position: relative; flex-shrink: 0; margin-top: 2px;
+  }
+  .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: 0.18s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .toggle.on { background: var(--success); }
+  .toggle.on::after { left: 16px; }
+
+  .btn {
+    padding: 6px 14px;
+    font-size: 13px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    border-radius: 6px;
+    color: var(--text);
+  }
+  .btn.warn { color: var(--warn); border-color: var(--warn); }
+  .btn.danger { color: white; background: var(--danger); border-color: var(--danger); }
+  .btn.primary { color: white; background: var(--accent); border-color: var(--accent); }
+  .btn.small { padding: 3px 10px; font-size: 12px; }
+
+  .pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 100px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+  .pill.set { background: var(--accent-bg); color: var(--accent); border-color: transparent; }
+  .pill.default { background: var(--success); color: white; border-color: transparent; }
+
+  .info-banner {
+    background: var(--surface-2);
+    color: var(--muted);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-top: 12px;
+  }
+  .warn-banner {
+    background: var(--warn-bg);
+    color: var(--warn);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-top: 10px;
+  }
+  .danger-banner {
+    background: var(--danger-bg);
+    color: var(--danger);
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    margin-top: 12px;
+    border: 1px solid var(--danger);
+  }
+
+  /* Passphrase list */
+  .pp-list { margin-top: 10px; }
+  .pp-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 6px;
+  }
+  .pp-entry:hover { border-color: var(--border-strong); }
+  .pp-entry .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .pp-entry .name { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .pp-entry .folder { font-size: 11.5px; color: var(--muted); font-family: ui-monospace, monospace; }
+  .pp-entry .actions { display: flex; gap: 6px; }
+
+  /* Help list */
+  .help-list { margin: 0; padding: 0; list-style: none; }
+  .help-list li {
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .help-list li:first-child { border-top: 0; }
+  .help-list a { color: var(--accent); text-decoration: none; }
+  .help-list .qhelp { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  /* Numeric inputs */
+  .num-input {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 10px; font-size: 13px;
+  }
+  .num-input input { width: 50px; border: 0; background: transparent; color: var(--text); font: inherit; text-align: right; }
+  .num-input input:focus { outline: 0; }
+
+  /* Modal mockup */
+  .modal-mockup {
+    margin-top: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.16);
+    max-width: 460px;
+  }
+  .modal-mockup h4 { margin: 0 0 14px; font-size: 15px; font-weight: 600; }
+  .modal-mockup .form-row { margin-bottom: 12px; }
+  .modal-mockup label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  .modal-mockup input[type="text"], .modal-mockup input[type="password"] {
+    width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface-2); color: var(--text); font: inherit;
+  }
+  .modal-mockup .row-flex { display: flex; gap: 8px; align-items: center; }
+  .modal-mockup .row-flex input { flex: 1; }
+  .strength-bar {
+    height: 4px; background: var(--border); border-radius: 100px; margin-top: 6px; overflow: hidden;
+  }
+  .strength-bar .fill { height: 100%; width: 75%; background: var(--success); }
+  .strength-text { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  .modal-mockup .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+  .pageheader { font-size: 13px; color: var(--muted); margin: 28px 0 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+</style>
+</head>
+<body>
+
+<h1>Encryption Settings — Option B (6 tabs, full)</h1>
+<p class="lede">Each panel below shows the same Option B layout with a different tab active. Includes the new options: named-passphrase address book, Diceware generator, folder claims, auto-lock, hide-from-screenshots, danger zone.</p>
+
+<!-- ============================== TAB 1: DEFAULTS ============================== -->
+<div class="pageheader">Tab 1 — Defaults</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab active">Defaults</div>
+    <div class="tab">Passphrases</div>
+    <div class="tab">Cache</div>
+    <div class="tab">Security</div>
+    <div class="tab danger">Danger zone</div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>Defaults</h3>
+    <p class="section-desc">How new files behave by default.</p>
+
+    <div class="field">
+      <div class="field-label">Default new file format</div>
+      <div class="field-help">When you create a new file, should it be plain or encrypted by default?</div>
+      <div class="radio-list">
+        <label class="checked">
+          <input type="radio" name="policy" checked>
+          <div>
+            <div class="opt-title">Unencrypted (.md)</div>
+            <div class="opt-help">New files start as plain markdown. Click the lock icon on a file to encrypt it. (Default.)</div>
+          </div>
+        </label>
+        <label>
+          <input type="radio" name="policy">
+          <div>
+            <div class="opt-title">Encrypted (.emd)</div>
+            <div class="opt-help">New files default to encrypted, using the appropriate passphrase (folder-claimed if available, else default). You can still decrypt individual files manually.</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <div class="toggle-label">
+        <span class="field-label">Always pick passphrase from list when creating an encrypted file</span>
+        <div class="field-help">Show the passphrase picker every time. Override the silent default behavior.</div>
+      </div>
+      <div class="toggle"></div>
+    </div>
+
+    <div class="toggle-row">
+      <div class="toggle-label">
+        <span class="field-label">Use Touch ID / Face ID to unlock encrypted files</span>
+        <div class="field-help">Stores your default passphrase in macOS Keychain, retrievable only via biometric.</div>
+      </div>
+      <div class="toggle"></div>
+    </div>
+
+    <div class="info-banner" style="opacity: 0.7;">Touch ID / Face ID: macOS only. Toggle hidden on Win + Linux.</div>
+  </div>
+</div>
+
+<!-- ============================== TAB 2: PASSPHRASES ============================== -->
+<div class="pageheader">Tab 2 — Passphrases</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Defaults</div>
+    <div class="tab active">Passphrases</div>
+    <div class="tab">Cache</div>
+    <div class="tab">Security</div>
+    <div class="tab danger">Danger zone</div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>Saved passphrases</h3>
+    <p class="section-desc">Define named passphrases and optionally bind each to a folder. Files in a claimed folder use that folder's passphrase by default.</p>
+
+    <div class="pp-list">
+      <div class="pp-entry">
+        <div class="meta">
+          <div class="name">Personal <span class="pill default">default</span></div>
+          <div class="folder">~/Documents/notes/</div>
+        </div>
+        <div class="actions">
+          <button class="btn small">Edit</button>
+          <button class="btn small" style="color: var(--danger); border-color: var(--danger);">Delete</button>
+        </div>
+      </div>
+      <div class="pp-entry">
+        <div class="meta">
+          <div class="name">Work</div>
+          <div class="folder">~/Code/work-notes/</div>
+        </div>
+        <div class="actions">
+          <button class="btn small">Edit</button>
+          <button class="btn small" style="color: var(--danger); border-color: var(--danger);">Delete</button>
+        </div>
+      </div>
+      <div class="pp-entry">
+        <div class="meta">
+          <div class="name">Project Alpha</div>
+          <div class="folder" style="opacity: 0.4;">no folder claim</div>
+        </div>
+        <div class="actions">
+          <button class="btn small">Edit</button>
+          <button class="btn small" style="color: var(--danger); border-color: var(--danger);">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <button class="btn primary">+ Add passphrase</button>
+    </div>
+
+    <!-- Inline mockup of the add modal -->
+    <div class="modal-mockup">
+      <h4>Add passphrase</h4>
+      <div class="form-row">
+        <label>Name</label>
+        <input type="text" value="Project Beta">
+      </div>
+      <div class="form-row">
+        <label>Folder claim (optional)</label>
+        <div class="row-flex">
+          <input type="text" value="~/Code/project-beta/notes/" placeholder="~/some/folder">
+          <button class="btn small">Browse…</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Passphrase</label>
+        <div class="row-flex">
+          <input type="password" value="•••••••••••••••••••••••••">
+          <button class="btn small">🎲 Generate</button>
+        </div>
+        <div class="strength-bar"><div class="fill"></div></div>
+        <div class="strength-text">Strength: strong · 78 bits entropy · 6 Diceware words</div>
+      </div>
+      <div class="toggle-row" style="border: 0; padding: 0;">
+        <div class="toggle-label">
+          <span class="field-label">Make this the default passphrase</span>
+        </div>
+        <div class="toggle"></div>
+      </div>
+      <div class="actions">
+        <button class="btn">Cancel</button>
+        <button class="btn primary">Save passphrase</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== TAB 3: CACHE ============================== -->
+<div class="pageheader">Tab 3 — Cache</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Defaults</div>
+    <div class="tab">Passphrases</div>
+    <div class="tab active">Cache</div>
+    <div class="tab">Security</div>
+    <div class="tab danger">Danger zone</div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>Passphrase cache</h3>
+    <p class="section-desc">When you open an encrypted file, the app tries any cached passphrase to unlock it automatically.</p>
+
+    <div class="field">
+      <div class="field-label">Remember entered passphrases for this session</div>
+      <div class="radio-list">
+        <label>
+          <input type="radio" name="cache">
+          <div>
+            <div class="opt-title">Don't remember any</div>
+            <div class="opt-help">Prompt for a passphrase every time you open an encrypted file. Most secure, most friction.</div>
+          </div>
+        </label>
+        <label>
+          <input type="radio" name="cache">
+          <div>
+            <div class="opt-title">Remember the most recent only</div>
+            <div class="opt-help">Each new passphrase replaces the previous one. Good for one-passphrase-at-a-time workflows.</div>
+          </div>
+        </label>
+        <label class="checked">
+          <input type="radio" name="cache" checked>
+          <div>
+            <div class="opt-title">Remember all this session <span class="pill" style="margin-left:6px;">default</span></div>
+            <div class="opt-help">Try every entered passphrase when opening files. Smoothest experience for multi-passphrase workflows.</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="info-banner">Cache is in-memory only. Cleared when the app quits, when the workspace closes, or when you click <strong>Lock now</strong> from the menu / status bar.</div>
+  </div>
+</div>
+
+<!-- ============================== TAB 4: SECURITY ============================== -->
+<div class="pageheader">Tab 4 — Security</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Defaults</div>
+    <div class="tab">Passphrases</div>
+    <div class="tab">Cache</div>
+    <div class="tab active">Security</div>
+    <div class="tab danger">Danger zone</div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>Security &amp; privacy</h3>
+    <p class="section-desc">Hardening options for at-rest, in-app and screen-leak risks.</p>
+
+    <div class="field">
+      <div class="field-label">Auto-lock when app is idle</div>
+      <div class="field-help">Automatically lock all open encrypted files after this many minutes of inactivity. Set to 0 to disable.</div>
+      <div style="margin-top: 10px;">
+        <span class="num-input">After <input type="number" value="10"> minutes</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">Hide content from app switcher / Mission Control</div>
+      <div class="field-help">When the app is in the background, encrypted file content is replaced by a lock icon in window thumbnails.</div>
+      <div class="toggle-row" style="margin-top: 8px;">
+        <span></span>
+        <div class="toggle on"></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">Hide encrypted content from screenshots</div>
+      <div class="field-help">macOS / Windows screenshot tools see a black or lock-icon area instead of the encrypted file content.</div>
+      <div class="toggle-row" style="margin-top: 8px;">
+        <span></span>
+        <div class="toggle on"></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">Passphrase strength requirements</div>
+      <div class="field-help">Enforced when adding or changing a saved passphrase, and when typing one-off passphrases.</div>
+      <div style="margin-top: 10px; display: flex; gap: 14px; flex-wrap: wrap;">
+        <span class="num-input">Min characters <input type="number" value="12"></span>
+        <span class="num-input">Min entropy bits <input type="number" value="50"></span>
+      </div>
+      <p class="field-help" style="margin-top: 8px;">
+        Diceware passphrases automatically meet typical entropy requirements (6 words ≈ 77 bits).
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== TAB 5: DANGER ZONE ============================== -->
+<div class="pageheader">Tab 5 — Danger zone</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Defaults</div>
+    <div class="tab">Passphrases</div>
+    <div class="tab">Cache</div>
+    <div class="tab">Security</div>
+    <div class="tab danger active">Danger zone</div>
+    <div class="tab">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3 style="color: var(--danger);">Danger zone</h3>
+    <p class="section-desc">Destructive operations. Each requires explicit confirmation in a separate modal.</p>
+
+    <div class="field">
+      <div class="field-label">Remove all encryption from this workspace</div>
+      <div class="field-help">Decrypts every <code>.emd</code> file in the workspace back to plain <code>.md</code>. Files become readable by any text editor or file viewer.</div>
+      <div class="danger-banner">
+        ⚠️ This is irreversible by the app. To re-encrypt, you'd have to encrypt each file again. Files will be readable on disk and any sync target (iCloud, Dropbox, GitHub, etc.) immediately after this completes.
+      </div>
+      <div style="margin-top: 14px;">
+        <button class="btn danger">Remove all encryption…</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">Delete all saved passphrases</div>
+      <div class="field-help">Removes the named passphrase address book. Encrypted files stay encrypted; you'll have to re-enter passphrases manually to open them.</div>
+      <div style="margin-top: 14px;">
+        <button class="btn danger">Delete all passphrases…</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== TAB 6: HELP ============================== -->
+<div class="pageheader">Tab 6 — Help</div>
+<div class="panel-shell">
+  <div class="tabs">
+    <div class="tab">Defaults</div>
+    <div class="tab">Passphrases</div>
+    <div class="tab">Cache</div>
+    <div class="tab">Security</div>
+    <div class="tab danger">Danger zone</div>
+    <div class="tab active">Help</div>
+  </div>
+  <div class="tab-content">
+    <h3>Help &amp; reference</h3>
+    <p class="section-desc">Plain-language explanations of what's actually happening under the hood.</p>
+
+    <ul class="help-list">
+      <li>
+        <a href="#">How encryption works in this app</a>
+        <div class="qhelp">A single page covering the file format, key derivation, and what's protected vs not.</div>
+      </li>
+      <li>
+        <a href="#">What happens if I forget my passphrase?</a>
+        <div class="qhelp">Honest answer: the file is gone. There is no recovery. Plan accordingly.</div>
+      </li>
+      <li>
+        <a href="#">Sharing encrypted files with others</a>
+        <div class="qhelp">In Phase 1, share by giving the recipient the passphrase out-of-band. Multi-recipient comes in Phase 2.</div>
+      </li>
+      <li>
+        <a href="#">What is Diceware?</a>
+        <div class="qhelp">Random word selection from a 7,776-word list. 6 words ≈ 77 bits entropy — far stronger than typical passwords, easier to write down.</div>
+      </li>
+      <li>
+        <a href="#">Algorithms used</a>
+        <div class="qhelp">XChaCha20-Poly1305 + Argon2id + zstd. Parameters per file, future-proof.</div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

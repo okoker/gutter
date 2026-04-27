@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Encryption design — Tier 3 + Tier 4 walkthrough</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --surface: #181c23;
+    --surface-2: #1f242c;
+    --text: #e6e9ef;
+    --text-muted: #9aa3b2;
+    --border: #2a313c;
+    --workspace: #5b8def;
+    --file: #6dc99c;
+    --author: #c084fc;
+    --crypto: #f59e0b;
+    --warn: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    padding: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 24px; margin: 0 0 6px; }
+  .lede { color: var(--text-muted); margin: 0 0 28px; }
+  h2 {
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+    margin: 36px 0 16px;
+  }
+  h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  p { margin: 8px 0; }
+  code { font: 12px/1.4 ui-monospace, "SF Mono", monospace; background: var(--surface); padding: 2px 6px; border-radius: 4px; color: #f9c0a3; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); margin: 0 0 24px; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 16px 0;
+  }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .col { flex: 1; min-width: 280px; }
+
+  /* Identity cards */
+  .identity-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .id-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 13px;
+  }
+  .id-card.workspace { border-left-color: var(--workspace); }
+  .id-card.author { border-left-color: var(--author); }
+  .id-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .id-card .name { font-weight: 600; font-size: 15px; margin: 4px 0 8px; }
+  .id-card ul { margin: 0; padding-left: 16px; color: var(--text-muted); }
+  .id-card .secret { color: var(--warn); }
+  .id-card .public { color: var(--file); }
+
+  /* File-anatomy diagram */
+  .file-stack { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 0; overflow: hidden; }
+  .file-row { padding: 12px 16px; display: flex; align-items: baseline; gap: 12px; border-top: 1px solid var(--border); }
+  .file-row:first-child { border-top: 0; }
+  .file-row .tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); width: 110px; flex-shrink: 0; }
+  .file-row .desc { flex: 1; font-family: ui-monospace, "SF Mono", monospace; font-size: 12.5px; color: var(--text); }
+  .file-row .note { color: var(--text-muted); font-size: 12px; }
+  .file-row.header { background: rgba(91, 141, 239, 0.06); }
+  .file-row.recipients { background: rgba(245, 158, 11, 0.05); }
+  .file-row.body { background: rgba(109, 201, 156, 0.05); }
+  .file-row.sig { background: rgba(192, 132, 252, 0.06); }
+
+  /* Flow steps */
+  .flow { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+  .step {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .step .num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 13px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+  .step .body { flex: 1; }
+  .step .title { font-weight: 600; margin-bottom: 4px; }
+  .step .detail { font-size: 12.5px; color: var(--text-muted); }
+  .step.crypto .num { background: rgba(245, 158, 11, 0.18); color: var(--crypto); border-color: var(--crypto); }
+  .step.workspace .num { background: rgba(91, 141, 239, 0.18); color: var(--workspace); border-color: var(--workspace); }
+  .step.file .num { background: rgba(109, 201, 156, 0.18); color: var(--file); border-color: var(--file); }
+  .step.author .num { background: rgba(192, 132, 252, 0.18); color: var(--author); border-color: var(--author); }
+
+  .arrow { text-align: center; color: var(--text-muted); margin: -2px 0; font-size: 16px; }
+
+  .pill { display: inline-block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 100px; margin-left: 6px; }
+  .pill.workspace { background: rgba(91, 141, 239, 0.18); color: var(--workspace); }
+  .pill.file { background: rgba(109, 201, 156, 0.18); color: var(--file); }
+  .pill.author { background: rgba(192, 132, 252, 0.18); color: var(--author); }
+  .pill.crypto { background: rgba(245, 158, 11, 0.18); color: var(--crypto); }
+
+  .callout {
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-size: 13px;
+    margin: 14px 0;
+  }
+  .callout strong { color: var(--warn); }
+</style>
+</head>
+<body>
+
+<h1>Encryption design — Tier 3 + Tier 4 walkthrough</h1>
+<p class="lede">Workspace master key for confidentiality • per-author signing keys for identity. No public-key infrastructure beyond the per-author signing keys (which never need exchange).</p>
+
+<div class="legend">
+  <span><span class="swatch" style="background: var(--workspace)"></span>Workspace-level (one per workspace)</span>
+  <span><span class="swatch" style="background: var(--file)"></span>Per-file (random per save)</span>
+  <span><span class="swatch" style="background: var(--author)"></span>Per-author (identity)</span>
+  <span><span class="swatch" style="background: var(--crypto)"></span>Cryptographic operation</span>
+</div>
+
+<h2>1. The cast</h2>
+<p>Three categories of secret/public material. None of them require a key-exchange protocol with another party.</p>
+
+<div class="identity-grid">
+  <div class="id-card workspace">
+    <div class="label">Workspace</div>
+    <div class="name">Workspace passphrase</div>
+    <ul>
+      <li>Typed by the user when unlocking the workspace</li>
+      <li>Argon2id derives the <strong>workspace master key</strong> (MK)</li>
+      <li class="secret">Never persisted</li>
+      <li>One per workspace, shared by everyone with read access</li>
+    </ul>
+  </div>
+  <div class="id-card author">
+    <div class="label">Author — Omer</div>
+    <div class="name">Ed25519 signing keypair</div>
+    <ul>
+      <li class="secret">Private signing key — stays on Omer's device</li>
+      <li class="public">Public verify key — embedded in every file Omer signs</li>
+      <li>No exchange protocol; verify keys travel inside files</li>
+    </ul>
+  </div>
+  <div class="id-card author">
+    <div class="label">Author — Claude</div>
+    <div class="name">Ed25519 signing keypair</div>
+    <ul>
+      <li class="secret">Private signing key — stays in agent's runtime</li>
+      <li class="public">Public verify key — embedded in every file Claude signs</li>
+      <li>Independent from Omer's keypair</li>
+    </ul>
+  </div>
+</div>
+
+<h2>2. Anatomy of an encrypted .gmd file</h2>
+<p>The file is a single binary blob. Plaintext metadata at the top, ciphertext body, signature footer.</p>
+
+<div class="file-stack">
+  <div class="file-row header">
+    <div class="tag">Magic</div>
+    <div class="desc">"GMD1" + version byte</div>
+    <div class="note">format identifier</div>
+  </div>
+  <div class="file-row header">
+    <div class="tag">Algo IDs</div>
+    <div class="desc">aead=XChaCha20-Poly1305, kdf=Argon2id, sig=Ed25519, comp=zstd</div>
+    <div class="note">version-friendly</div>
+  </div>
+  <div class="file-row recipients">
+    <div class="tag">Wrapped CEK</div>
+    <div class="desc">AEAD<sub>MK</sub>(CEK) <span class="pill workspace">wrap</span></div>
+    <div class="note">CEK encrypted by workspace master key. <strong>One wrap, not N.</strong></div>
+  </div>
+  <div class="file-row recipients">
+    <div class="tag">Salt</div>
+    <div class="desc">random 16 B (Argon2id salt for MK)</div>
+    <div class="note">in-file so opener can re-derive MK</div>
+  </div>
+  <div class="file-row body">
+    <div class="tag">Nonce</div>
+    <div class="desc">random 24 B (XChaCha20 nonce)</div>
+    <div class="note"></div>
+  </div>
+  <div class="file-row body">
+    <div class="tag">Body</div>
+    <div class="desc">AEAD<sub>CEK</sub>( zstd(plaintext markdown) )</div>
+    <div class="note">the actual encrypted writing</div>
+  </div>
+  <div class="file-row sig">
+    <div class="tag">Author</div>
+    <div class="desc">label="Omer", verify_key=Ed25519 public</div>
+    <div class="note">readable to anyone (it's identity, not secret)</div>
+  </div>
+  <div class="file-row sig">
+    <div class="tag">Signature</div>
+    <div class="desc">Ed25519<sub>Omer-priv</sub>( hash of everything above )</div>
+    <div class="note">proves "Omer wrote this version"</div>
+  </div>
+</div>
+
+<h2>3. Save flow — Omer writes a note</h2>
+
+<div class="flow">
+  <div class="step workspace">
+    <div class="num">1</div>
+    <div class="body">
+      <div class="title">Workspace already unlocked <span class="pill workspace">workspace</span></div>
+      <div class="detail">MK = Argon2id(passphrase, workspace_salt). MK lives in memory only. If workspace is locked, prompt for passphrase first.</div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step file">
+    <div class="num">2</div>
+    <div class="body">
+      <div class="title">Generate fresh CEK <span class="pill file">per-save</span></div>
+      <div class="detail">CEK = 32 random bytes from CSPRNG. New CEK every save.</div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step crypto">
+    <div class="num">3</div>
+    <div class="body">
+      <div class="title">Compress + encrypt body</div>
+      <div class="detail">compressed = zstd(plaintext). body_ct = XChaCha20-Poly1305(key=CEK, nonce, compressed)</div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step crypto">
+    <div class="num">4</div>
+    <div class="body">
+      <div class="title">Wrap CEK with workspace MK</div>
+      <div class="detail">wrapped_CEK = XChaCha20-Poly1305(key=MK, fresh_nonce, CEK). MK never touches the file body — only wraps the small CEK.</div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step author">
+    <div class="num">5</div>
+    <div class="body">
+      <div class="title">Sign with Omer's Ed25519 key <span class="pill author">identity</span></div>
+      <div class="detail">sig = Ed25519_sign(Omer_priv, hash(magic ‖ algos ‖ wrapped_CEK ‖ salt ‖ nonce ‖ body_ct ‖ author_block))</div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step file">
+    <div class="num">6</div>
+    <div class="body">
+      <div class="title">Write file atomically</div>
+      <div class="detail">Concatenate header + wrapped_CEK + salt + nonce + body_ct + author_block + sig. Write to temp + fsync + rename.</div>
+    </div>
+  </div>
+</div>
+
+<h2>4. Open flow — Claude opens that file</h2>
+
+<div class="flow">
+  <div class="step workspace">
+    <div class="num">1</div>
+    <div class="body">
+      <div class="title">Read header + retrieve passphrase <span class="pill workspace">workspace</span></div>
+      <div class="detail">Claude has the workspace passphrase too (this tier shares one workspace key). Re-derive MK = Argon2id(passphrase, salt_from_file).</div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step crypto">
+    <div class="num">2</div>
+    <div class="body">
+      <div class="title">Unwrap CEK</div>
+      <div class="detail">CEK = AEAD_decrypt(MK, wrapped_CEK). If decryption fails → wrong workspace passphrase.</div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step crypto">
+    <div class="num">3</div>
+    <div class="body">
+      <div class="title">Decrypt + decompress body</div>
+      <div class="detail">compressed = AEAD_decrypt(CEK, nonce, body_ct). plaintext = zstd_decompress(compressed). AEAD also verifies body wasn't tampered.</div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step author">
+    <div class="num">4</div>
+    <div class="body">
+      <div class="title">Verify author signature <span class="pill author">identity</span></div>
+      <div class="detail">Read author_block: { label="Omer", verify_key }. Verify sig with verify_key. UI displays: "Last edited by Omer ✓".</div>
+    </div>
+  </div>
+</div>
+
+<h2>5. Identity in practice</h2>
+
+<div class="row">
+  <div class="col panel">
+    <h3>What the user sees in the editor</h3>
+    <p>A small badge near the file title:</p>
+    <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-family: ui-monospace, monospace; font-size: 13px; margin: 8px 0;">
+      📝 meeting-notes.gmd<br>
+      <span style="color: var(--text-muted); font-size: 12px;">Last saved by <span style="color: var(--author); font-weight: 600;">Omer</span> · signature verified ✓</span>
+    </div>
+    <p style="font-size: 12.5px; color: var(--text-muted);">Tampering with the body invalidates the signature; UI shows "⚠ signature invalid" instead of the green check.</p>
+  </div>
+  <div class="col panel">
+    <h3>What about per-paragraph attribution?</h3>
+    <p style="font-size: 12.5px; color: var(--text-muted);">Out of scope for v1. The signature is per-file-version, not per-paragraph. If you want "this paragraph was written by Claude, that one by Omer" you'd add inline signature blocks (similar to the existing comment marker pattern) — straightforward but separate work.</p>
+  </div>
+</div>
+
+<h2>6. What this tier explicitly does NOT solve</h2>
+
+<div class="callout">
+  <strong>Per-recipient revocation.</strong> If Claude is compromised, you must rotate the workspace passphrase. There's no way to revoke just Claude while keeping Omer's access — both share the same MK. Tier 5 (per-recipient pubkey) is what you'd add later if you need this.
+</div>
+
+<div class="callout">
+  <strong>Workspace passphrase compromise = full read access.</strong> Anyone with the workspace passphrase can read every file in the workspace. Signing keys protect <em>who can write a valid signature</em>, not <em>who can read</em>.
+</div>
+
+<div class="callout">
+  <strong>Forward secrecy on revocation.</strong> Past file versions stay readable by anyone who already had the passphrase and kept a copy. Encryption can't unsend.
+</div>
+
+<h2>7. Upgrade path to Tier 5</h2>
+<p style="font-size: 13px;">The file format is designed to grow. The single <code>wrapped_CEK</code> field becomes <code>wrapped_CEK[N]</code>: one wrap per recipient public key. Workspace master key is replaced by per-recipient X25519 wrapping. <strong>Old Tier-3 files keep working</strong> because the version byte distinguishes formats. No body re-encryption needed — only the small key-wrap section grows.</p>
+
+</body>
+</html>
