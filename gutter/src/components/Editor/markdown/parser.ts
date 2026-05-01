@@ -50,6 +50,17 @@ export function parseMarkdown(markdown: string, fileDirPath?: string): JSONConte
   // Re-insert math blocks
   const result = reinsertMathBlocks(content, mathBlocks);
 
+  // Preserve trailing blank lines as empty paragraphs. Source ending in "\n"
+  // is the standard "file ends cleanly"; each additional trailing newline
+  // beyond that represents one blank line the user typed at the end of the
+  // doc, which round-trips as an empty paragraph.
+  const trailingMatch = cleaned.match(/\n*$/);
+  const trailingNewlines = trailingMatch ? trailingMatch[0].length : 0;
+  const trailingEmpties = Math.max(0, trailingNewlines - 1);
+  for (let i = 0; i < trailingEmpties; i++) {
+    result.push({ type: "paragraph" });
+  }
+
   // Prepend frontmatter node if present
   const docContent: JSONContent[] = [];
   if (frontmatterContent !== null) {
@@ -208,7 +219,25 @@ function reinsertMathBlocks(
 function convertChildren(node: MdastNode): JSONContent[] {
   if (!node.children) return [];
   const result: JSONContent[] = [];
+  // Preserve extra blank lines between block siblings as empty paragraphs.
+  // CommonMark collapses any number of blank lines into a single block
+  // separator; we recover the user-typed count from mdast position info.
+  // For a gap of N blank lines (N >= 2 ⇒ user added extra blanks beyond
+  // the standard 1), insert (N - 1) empty paragraphs.
+  const isTopLevel = node.type === "root";
+  let prevEndLine: number | undefined;
   for (const child of node.children) {
+    if (
+      isTopLevel &&
+      prevEndLine !== undefined &&
+      child.position?.start.line !== undefined
+    ) {
+      const blankLines = child.position.start.line - prevEndLine - 1;
+      const extra = Math.max(0, blankLines - 1);
+      for (let i = 0; i < extra; i++) {
+        result.push({ type: "paragraph" });
+      }
+    }
     const converted = convertNode(child);
     if (converted) {
       if (Array.isArray(converted)) {
@@ -216,6 +245,9 @@ function convertChildren(node: MdastNode): JSONContent[] {
       } else {
         result.push(converted);
       }
+    }
+    if (child.position?.end.line !== undefined) {
+      prevEndLine = child.position.end.line;
     }
   }
   return result;
@@ -249,17 +281,72 @@ function convertNode(node: MdastNode): JSONContent | JSONContent[] | null {
       const isTaskList = node.children?.some(
         (child) => child.checked !== null && child.checked !== undefined,
       );
-      if (isTaskList) {
-        return {
-          type: "taskList",
-          content: convertChildren(node),
-        };
+      const items = node.children ?? [];
+
+      // Split the list at points where adjacent items have an extra
+      // blank-line gap (≥ 2 blank lines). CommonMark/remark merges items
+      // separated by blank lines into a single "loose" list, absorbing the
+      // gap; we recover the user-typed gap by splitting back into multiple
+      // lists with empty paragraphs between them.
+      const segments: Array<{ items: MdastNode[]; emptiesAfter: number }> = [];
+      let current: MdastNode[] = [];
+      for (let i = 0; i < items.length; i++) {
+        current.push(items[i]);
+        if (i + 1 < items.length) {
+          const a = items[i];
+          const b = items[i + 1];
+          const aEnd = a.position?.end.line;
+          const bStart = b.position?.start.line;
+          if (aEnd !== undefined && bStart !== undefined) {
+            const blankLines = bStart - aEnd - 1;
+            if (blankLines >= 2) {
+              segments.push({ items: current, emptiesAfter: blankLines - 1 });
+              current = [];
+            }
+          }
+        }
       }
-      return {
-        type: node.ordered ? "orderedList" : "bulletList",
-        attrs: node.ordered ? { start: node.start || 1 } : undefined,
-        content: convertChildren(node),
+      if (current.length > 0) {
+        segments.push({ items: current, emptiesAfter: 0 });
+      }
+
+      const buildList = (segItems: MdastNode[], startOverride?: number) => {
+        const itemContent: JSONContent[] = [];
+        for (const it of segItems) {
+          const conv = convertNode(it);
+          if (conv) {
+            if (Array.isArray(conv)) itemContent.push(...conv);
+            else itemContent.push(conv);
+          }
+        }
+        if (isTaskList) {
+          return { type: "taskList", content: itemContent };
+        }
+        return {
+          type: node.ordered ? "orderedList" : "bulletList",
+          attrs: node.ordered
+            ? { start: startOverride ?? node.start ?? 1 }
+            : undefined,
+          content: itemContent,
+        };
       };
+
+      if (segments.length === 1) {
+        return buildList(segments[0].items);
+      }
+
+      // Multi-segment: emit list, empty paragraphs, list, ... so the doc
+      // root sees them as separate sibling blocks.
+      const out: JSONContent[] = [];
+      let runningCount = node.start ?? 1;
+      for (let s = 0; s < segments.length; s++) {
+        out.push(buildList(segments[s].items, runningCount));
+        runningCount += segments[s].items.length;
+        for (let e = 0; e < segments[s].emptiesAfter; e++) {
+          out.push({ type: "paragraph" });
+        }
+      }
+      return out;
     }
 
     case "listItem": {

@@ -76,4 +76,121 @@ describe("Markdown Round-Trip", () => {
     const md2 = serializeMarkdown(doc2);
     expect(md2).toBe(md1);
   });
+
+  describe("blank line preservation", () => {
+    it("preserves 1 explicit blank line between paragraphs (1 empty paragraph)", () => {
+      // [P1, EmptyP, P2] in editor → 2 blank lines in source ("Para1\n\n\nPara2\n")
+      const doc = {
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "Para1" }] },
+          { type: "paragraph" },
+          { type: "paragraph", content: [{ type: "text", text: "Para2" }] },
+        ],
+      };
+      const md = serializeMarkdown(doc);
+      expect(md).toBe("Para1\n\n\nPara2\n");
+      const reparsed = parseMarkdown(md);
+      // Three paragraph nodes, middle one empty
+      expect(reparsed.content?.length).toBe(3);
+      expect(reparsed.content?.[0].type).toBe("paragraph");
+      expect(reparsed.content?.[1].type).toBe("paragraph");
+      expect(reparsed.content?.[1].content).toBeUndefined();
+      expect(reparsed.content?.[2].type).toBe("paragraph");
+      // Double round-trip stable
+      expect(serializeMarkdown(reparsed)).toBe(md);
+    });
+
+    it("preserves 2 explicit blank lines between paragraphs (2 empty paragraphs)", () => {
+      const doc = {
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "Para1" }] },
+          { type: "paragraph" },
+          { type: "paragraph" },
+          { type: "paragraph", content: [{ type: "text", text: "Para2" }] },
+        ],
+      };
+      const md = serializeMarkdown(doc);
+      expect(md).toBe("Para1\n\n\n\nPara2\n");
+      const reparsed = parseMarkdown(md);
+      expect(reparsed.content?.length).toBe(4);
+      expect(reparsed.content?.[1].content).toBeUndefined();
+      expect(reparsed.content?.[2].content).toBeUndefined();
+      expect(serializeMarkdown(reparsed)).toBe(md);
+    });
+
+    it("preserves trailing empty paragraph", () => {
+      const doc = {
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "Para1" }] },
+          { type: "paragraph" },
+        ],
+      };
+      const md = serializeMarkdown(doc);
+      expect(md).toBe("Para1\n\n");
+      const reparsed = parseMarkdown(md);
+      expect(reparsed.content?.length).toBe(2);
+      expect(reparsed.content?.[1].content).toBeUndefined();
+      expect(serializeMarkdown(reparsed)).toBe(md);
+    });
+
+    it("preserves blank line between two checkboxes (splits the task list)", () => {
+      // Source: 2 blank lines between checkbox items. CommonMark merges these
+      // into a single loose task list, so we split it back into two task
+      // lists with an empty paragraph between to recover the user-typed gap.
+      const md = "- [ ] one\n\n\n- [ ] two\n";
+      const doc = parseMarkdown(md);
+      const types = doc.content?.map((n) => n.type) ?? [];
+      expect(types).toEqual(["taskList", "paragraph", "taskList"]);
+      const md2 = serializeMarkdown(doc);
+      expect(md2).toBe(md);
+    });
+
+    it("preserves blank line between two bullet items (splits the list)", () => {
+      const md = "- one\n\n\n- two\n";
+      const doc = parseMarkdown(md);
+      const types = doc.content?.map((n) => n.type) ?? [];
+      expect(types).toEqual(["bulletList", "paragraph", "bulletList"]);
+      const md2 = serializeMarkdown(doc);
+      expect(md2).toBe(md);
+    });
+
+    it("preserves blank lines between ordered list items (splits, continues numbering)", () => {
+      const md = "1. one\n\n\n2. two\n";
+      const doc = parseMarkdown(md);
+      const types = doc.content?.map((n) => n.type) ?? [];
+      expect(types).toEqual(["orderedList", "paragraph", "orderedList"]);
+      // Second list should start at 2 to match the source "2."
+      const secondList = doc.content?.[2];
+      expect(secondList?.attrs?.start).toBe(2);
+      const md2 = serializeMarkdown(doc);
+      expect(md2).toBe(md);
+    });
+
+    it("tight list (no blank lines between items) stays as one list", () => {
+      const md = "- one\n- two\n";
+      const doc = parseMarkdown(md);
+      const types = doc.content?.map((n) => n.type) ?? [];
+      expect(types).toEqual(["bulletList"]);
+      expect(serializeMarkdown(doc)).toBe(md);
+    });
+
+    it("standard 1-blank-line gap stays untouched", () => {
+      // [P1, P2] (no empty paragraph) — standard adjacent paragraphs.
+      const doc = {
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "Para1" }] },
+          { type: "paragraph", content: [{ type: "text", text: "Para2" }] },
+        ],
+      };
+      const md = serializeMarkdown(doc);
+      expect(md).toBe("Para1\n\nPara2\n");
+      const reparsed = parseMarkdown(md);
+      expect(reparsed.content?.length).toBe(2);
+      expect(serializeMarkdown(reparsed)).toBe(md);
+    });
+  });
 });

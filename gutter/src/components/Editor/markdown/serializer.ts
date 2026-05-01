@@ -35,7 +35,17 @@ export function serializeMarkdown(doc: JSONContent): string {
   const blocks = contentNodes.map((node, i) =>
     serializeBlock(node, contentNodes, i),
   );
-  return frontmatter + blocks.join("\n\n") + "\n";
+  // Smart join: empty paragraphs (which serialize to "") use a single-newline
+  // prefix instead of the standard "\n\n", so an empty paragraph contributes
+  // exactly one extra blank line beyond the standard separator. This makes
+  // round-trip stable: N empty paragraphs ⇒ N+1 blank lines in source ⇒
+  // parser reconstructs N empty paragraphs.
+  let body = "";
+  for (let i = 0; i < blocks.length; i++) {
+    if (i > 0) body += blocks[i] === "" ? "\n" : "\n\n";
+    body += blocks[i];
+  }
+  return frontmatter + body + "\n";
 }
 
 function serializeBlock(
