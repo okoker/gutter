@@ -54,6 +54,8 @@ Forked from upstream `davidrigie/gutter` at v0.3.8. Everything below is fork-onl
 
 ### Fixed
 
+- **Editor lost user-typed blank lines on save+reload.** Pressing Enter to insert empty paragraphs between paragraphs, bullets, or checkboxes round-tripped to zero — CommonMark/remark collapses repeated blank lines and merges separated list items into one "loose" list, absorbing the gap. Parser now uses mdast position info to recover the gap: at the doc root it injects empty-paragraph nodes for each blank-line gap of 2+; inside any list it splits the list at items separated by 2+ blank lines and emits empty paragraphs between the resulting sub-lists. Ordered lists carry running item counts forward so numbering stays correct. Trailing blank lines are also recovered. Serializer prefixes empty blocks with a single newline instead of `\n\n` so round-trip is stable: N empty paragraphs ⇒ N+1 blank lines in source ⇒ parser reconstructs N empty paragraphs.
+
 - **Folder chevron toggled the wrong folder in the sidebar.** Folder rows lacked `position: relative`, so the absolutely-positioned indent-guide wrapper at depth > 0 resolved against a high ancestor and intercepted clicks at top-level chevron coordinates. Mirrors the pattern already on the file row.
 
 - **macOS file watcher panicked on atomic-rename writes (Typora, VS Code, vim atomic-save).** `notify`'s `kqueue` backend crashed inside `Option::unwrap()` and silently killed the watcher thread for the rest of the session. Switched to default FSEvents backend; `kqueue` feature dropped from `Cargo.toml`. Known limitation: FSEvents doesn't fire for remote-side changes on network-mounted or iCloud "Optimise Storage" paths — workspaces on local disk are unaffected.
