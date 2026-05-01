@@ -8,7 +8,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Forked from upstream `davidrigie/gutter` at v0.3.8. Everything below is fork-only and has not yet been cut as a release.
+_No changes yet since 0.9.0._
+
+---
+
+## [0.9.0] — 2026-05-01
+
+First versioned fork release. Captures everything fork-only since the 0.3.8 fork point. Bumped past 0.4 / 0.5 to 0.9 to honestly signal the fork's divergence from upstream while leaving 1.0 for the post-rebrand + encryption phase 1 milestone.
 
 ### Security
 
@@ -20,6 +26,13 @@ Forked from upstream `davidrigie/gutter` at v0.3.8. Everything below is fork-onl
   - One additional finding (IPC path boundary) is documented in the backlog with a deferral rationale.
 
 ### Added
+
+- **Section fold — heading collapse/expand.** Click a chevron to the left of any heading to collapse everything under it until the next equal-or-higher heading. Sections nest by heading level (folding H1 hides nested H2/H3). Chevron lives in a permanent NodeView (not a decoration widget), so click is reliable. Reading mode has the same chevron + click behaviour. Fold state persists across tab switches and edit/reading-mode toggles via `OpenTab.foldedPositions` (session-only — never written to disk).
+  - **Type past a fold without expanding:** Enter at the end of a folded heading inserts a paragraph after the section.
+  - **Backspace symmetry:** Backspace at the start of an empty paragraph following a section deletes it cleanly (works around `defining: true` blocking the default `joinBackward` merge).
+  - *Technical:* implemented per the [official ProseMirror folding example](https://prosemirror.net/examples/fold/) — schema-level wrapper node + NodeView + decoration plugin. Schema: `section { content: "heading block*", group: "block" }`. Parser `wrapSections` post-pass nests headings by level; serializer `flattenSections` pre-pass un-nests before writing — markdown on disk is byte-identical, sections are an in-memory wrapper only. Fold plugin tracks state as a `DecorationSet` with `{foldSection: true}` spec; NodeView's `update(node, decorations)` reads the spec and toggles the `.is-folded` class. CSS hides every contentDOM child except the heading. Disambiguates nested sections at the same point via `from === pos` filter on decoration removal.
+
+- **Open-file-from-OS routing.** Double-clicking a `.md`/`.markdown` file in Finder/Explorer (or a multi-file selection) now opens those files in Gutter and intelligently augments the workspace: a file inside an open root just opens a tab; otherwise the parent directory is added as an additional root. Multi-file selections all open; the last is focused. Cold-start works via a `frontend_ready` gate (Rust stashes paths in `OpenFileState` until the React listener is ready).
 
 - **Multi-root workspace.** Multiple folders can be open in the sidebar simultaneously, VS Code-style.
   - File menu / command palette: **Add Folder to Workspace** appends a root without closing the others.
@@ -42,6 +55,8 @@ Forked from upstream `davidrigie/gutter` at v0.3.8. Everything below is fork-onl
 
 ### Changed
 
+- **Unsaved-changes dialog — Save / Discard / Cancel.** Replaces the binary `ask()` confirmation that previously fired on window close, tab close, and Cmd+Q. Now offers three options: Save (writes and closes), Discard (closes without saving), Cancel (aborts). Cmd+Q goes through the same flow — the menu's Quit item is now a custom command that emits `menu:quit-requested` rather than Tauri's default `.quit()` which calls `process::exit` directly and bypasses the dialog. Esc cancels, Enter saves.
+
 - **Subfolders collapse by default in new workspace roots.** Previously immediate children of a root expanded automatically, producing a wall of pre-expanded folders when adding a root. Only the root header opens by default now; per-path expansion still survives root collapse/re-expand.
 
 - **All right-side panels closed by default on launch.** Comments was previously open by default. With Snippets/History/Tags/Comments all available and users varying in preference, no panel auto-opens — users open whichever they want.
@@ -53,6 +68,8 @@ Forked from upstream `davidrigie/gutter` at v0.3.8. Everything below is fork-onl
 - **Toast durations.** Errors 8 s, info 5 s, success 4 s (was uniform 4 s). Errors need time to read; success just confirms.
 
 ### Fixed
+
+- **Editor falsely dirtied freshly-opened tabs.** TipTap's `onUpdate` fires for every transaction, including plugin-meta dispatches and decoration updates that don't change the doc. A `setMeta` from a `useEffect` on editor mount was setting the dirty flag for tabs the user hadn't touched. `onUpdate` now gates on `transaction.docChanged` so non-doc-changing transactions are skipped.
 
 - **Editor lost user-typed blank lines on save+reload.** Pressing Enter to insert empty paragraphs between paragraphs, bullets, or checkboxes round-tripped to zero — CommonMark/remark collapses repeated blank lines and merges separated list items into one "loose" list, absorbing the gap. Parser now uses mdast position info to recover the gap: at the doc root it injects empty-paragraph nodes for each blank-line gap of 2+; inside any list it splits the list at items separated by 2+ blank lines and emits empty paragraphs between the resulting sub-lists. Ordered lists carry running item counts forward so numbering stays correct. Trailing blank lines are also recovered. Serializer prefixes empty blocks with a single newline instead of `\n\n` so round-trip is stable: N empty paragraphs ⇒ N+1 blank lines in source ⇒ parser reconstructs N empty paragraphs.
 
