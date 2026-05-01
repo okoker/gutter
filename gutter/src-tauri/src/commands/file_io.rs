@@ -200,10 +200,15 @@ pub fn read_file_data_url(path: String) -> Result<String, String> {
     Ok(format!("data:{};base64,{}", mime, b64))
 }
 
+/// Drain pending OS file-open paths queued before the frontend listener was
+/// ready. Marks the frontend ready so subsequent file-open events go
+/// straight to the live listener instead of being stashed.
 #[tauri::command]
-pub fn get_open_file_path(app: tauri::AppHandle) -> Option<String> {
+pub fn get_open_file_path(app: tauri::AppHandle) -> Vec<String> {
+    use std::sync::atomic::Ordering;
     use tauri::Manager;
     let state = app.state::<crate::OpenFileState>();
-    let path = state.path.lock().unwrap().take();
-    path
+    state.frontend_ready.store(true, Ordering::Relaxed);
+    let mut paths = state.paths.lock().unwrap();
+    std::mem::take(&mut *paths)
 }

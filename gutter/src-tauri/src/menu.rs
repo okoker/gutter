@@ -13,6 +13,10 @@ pub fn setup_menu(app: &App) -> Result<(), Box<dyn std::error::Error>> {
         Some("CmdOrCtrl+,"),
     )?;
 
+    // --- Quit (custom — predefined .quit() bypasses all run-loop events
+    //     including onCloseRequested, leaving no chance for a save prompt).
+    let quit = MenuItem::with_id(app, "quit", "Quit Gutter", true, Some("CmdOrCtrl+Q"))?;
+
     // --- File menu ---
     let new_file = MenuItem::with_id(app, "new_file", "New File", true, Some("CmdOrCtrl+N"))?;
     let open = MenuItem::with_id(app, "open", "Open File", true, Some("CmdOrCtrl+O"))?;
@@ -224,7 +228,7 @@ pub fn setup_menu(app: &App) -> Result<(), Box<dyn std::error::Error>> {
         .hide_others()
         .show_all()
         .separator()
-        .quit()
+        .item(&quit)
         .build()?;
 
     let builder = MenuBuilder::new(app);
@@ -272,6 +276,7 @@ pub fn setup_menu(app: &App) -> Result<(), Box<dyn std::error::Error>> {
             "new_comment" => "menu:new-comment",
             "next_comment" => "menu:next-comment",
             "prev_comment" => "menu:prev-comment",
+            "quit" => "menu:quit-requested",
             _ => return,
         };
         let _ = app_handle.emit(event_name, ());

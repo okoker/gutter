@@ -17,6 +17,10 @@ export interface OpenTab {
   isPinned: boolean;
   diskHash: string | null;
   externallyModified: boolean;
+  // Section positions that are currently folded. Captured on every editor
+  // transaction; consumed when the tab's editor remounts (tab switch). Lost
+  // when the tab closes — we don't write this to disk.
+  foldedPositions?: number[];
 }
 
 export interface WorkspaceRoot {
@@ -47,6 +51,12 @@ interface WorkspaceState {
   openTabs: OpenTab[];
   activeTabPath: string | null;
 
+  // True once useWorkspacePersistence has finished restoring saved roots
+  // (or decided not to). Gates the cold-start "open-file from OS" routing so
+  // the coverage check runs against the restored root set, not an empty one.
+  restorationComplete: boolean;
+  setRestorationComplete: (v: boolean) => void;
+
   addRoot: (rawPath: string, opts?: { silentError?: boolean }) => Promise<void>;
   removeRoot: (path: string) => void;
   loadRootTree: (path: string) => Promise<void>;
@@ -67,6 +77,7 @@ interface WorkspaceState {
   updateTabPath: (oldPath: string, newPath: string, newName: string) => void;
   setTabDiskHash: (path: string, hash: string | null) => void;
   setTabExternallyModified: (path: string, modified: boolean) => void;
+  setTabFoldedPositions: (path: string, positions: number[]) => void;
   getTab: (path: string) => OpenTab | undefined;
 }
 
@@ -90,6 +101,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   fileTree: [],
   openTabs: [],
   activeTabPath: null,
+  restorationComplete: false,
+
+  setRestorationComplete: (v) => set({ restorationComplete: v }),
 
   addRoot: async (rawPath: string, opts?: { silentError?: boolean }) => {
     // canonicalize_path requires the path to exist on disk. Callers that want
@@ -254,6 +268,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set({
       openTabs: openTabs.map((t) =>
         t.path === path ? { ...t, externallyModified: modified } : t,
+      ),
+    });
+  },
+
+  setTabFoldedPositions: (path, positions) => {
+    const { openTabs } = get();
+    set({
+      openTabs: openTabs.map((t) =>
+        t.path === path ? { ...t, foldedPositions: positions } : t,
       ),
     });
   },

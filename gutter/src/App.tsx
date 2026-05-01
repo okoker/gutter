@@ -8,6 +8,7 @@ import { HistoryPanel } from "./components/HistoryPanel";
 import { SnippetsPanel } from "./components/SnippetsPanel";
 import { SnippetPicker } from "./components/SnippetPicker";
 import { SnippetNamePrompt } from "./components/SnippetNamePrompt";
+import { UnsavedChangesDialog } from "./components/UnsavedChangesDialog";
 import { useSnippetStore } from "./stores/snippetStore";
 import { parentDir, joinPath } from "./utils/path";
 import { parseMarkdown } from "./components/Editor/markdown/parser";
@@ -153,7 +154,7 @@ function App() {
   useThemeApplication();
 
   // Window lifecycle: close guard, drag-drop, settings, tags, version preview clear
-  useWindowLifecycle(editorInstanceRef, handleFileTreeOpen, setVersionPreview);
+  useWindowLifecycle(editorInstanceRef, handleFileTreeOpen, setVersionPreview, handleSave);
 
   // Multi-root workspace persistence: restore on launch + sync on change
   useWorkspacePersistence();
@@ -529,6 +530,8 @@ function App() {
           setSnippetNameText(null);
         }}
       />
+
+      <UnsavedChangesDialog />
 
       <ToastContainer />
     </div>

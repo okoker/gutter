@@ -1,11 +1,16 @@
 mod commands;
 mod menu;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
 
 pub struct OpenFileState {
-    pub path: Mutex<Option<String>>,
+    /// Pending paths queued before the frontend listener was ready. Drained
+    /// once on first call to `get_open_file_path`. Subsequent OS file-open
+    /// events go straight to the live listener without being stashed.
+    pub paths: Mutex<Vec<String>>,
+    pub frontend_ready: AtomicBool,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -14,14 +19,18 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            // This handles opening a file when an instance is already running (Windows/Linux)
-            let path = args.iter().find(|arg| arg.ends_with(".md") || arg.ends_with(".markdown"));
-            if let Some(p) = path {
-                let _ = app.emit("open-file", p);
+            // Warm-app file open on Windows/Linux: a second launch invocation
+            // forwards its argv here. Emit one event per .md / .markdown arg
+            // so multi-file selections all open.
+            for arg in args.iter().skip(1) {
+                if arg.ends_with(".md") || arg.ends_with(".markdown") {
+                    let _ = app.emit("open-file", arg);
+                }
             }
         }))
         .manage(OpenFileState {
-            path: Mutex::new(None),
+            paths: Mutex::new(Vec::new()),
+            frontend_ready: AtomicBool::new(false),
         })
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -32,12 +41,16 @@ pub fn run() {
                 )?;
             }
 
-            // Handle CLI args on Windows/Linux at startup
+            // Handle CLI args on Windows/Linux at startup. Stash all .md /
+            // .markdown args into the pending Vec; the frontend drains them
+            // once on first call to `get_open_file_path`.
             let args: Vec<String> = std::env::args().collect();
-            let path = args.iter().find(|arg| arg.ends_with(".md") || arg.ends_with(".markdown"));
-            if let Some(p) = path {
-                let state = app.state::<OpenFileState>();
-                *state.path.lock().unwrap() = Some(p.clone());
+            let state = app.state::<OpenFileState>();
+            let mut pending = state.paths.lock().unwrap();
+            for arg in args.iter().skip(1) {
+                if arg.ends_with(".md") || arg.ends_with(".markdown") {
+                    pending.push(arg.clone());
+                }
             }
 
             menu::setup_menu(app)?;
@@ -97,11 +110,19 @@ pub fn run() {
             match event {
                 #[cfg(target_os = "macos")]
                 RunEvent::Opened { urls } => {
-                    if let Some(url) = urls.first() {
+                    // Emit one event per URL so multi-file Finder selections
+                    // all open. Until the frontend has drained the pending
+                    // queue (signal: first call to `get_open_file_path`),
+                    // also stash each path so cold-start events fired before
+                    // the listener attaches aren't lost.
+                    let state = app_handle.state::<OpenFileState>();
+                    let frontend_ready = state.frontend_ready.load(Ordering::Relaxed);
+                    for url in &urls {
                         if let Ok(path) = url.to_file_path() {
                             let path_str = path.to_string_lossy().to_string();
-                            let state = app_handle.state::<OpenFileState>();
-                            *state.path.lock().unwrap() = Some(path_str.clone());
+                            if !frontend_ready {
+                                state.paths.lock().unwrap().push(path_str.clone());
+                            }
                             let _ = app_handle.emit("open-file", path_str);
                         }
                     }

@@ -19,7 +19,10 @@ export function useWorkspacePersistence() {
     if (!loaded || restoredOnce.current) return;
     restoredOnce.current = true;
     const { rememberWorkspaceRoots, savedWorkspaceRoots } = useSettingsStore.getState();
-    if (!rememberWorkspaceRoots || savedWorkspaceRoots.length === 0) return;
+    if (!rememberWorkspaceRoots || savedWorkspaceRoots.length === 0) {
+      useWorkspaceStore.getState().setRestorationComplete(true);
+      return;
+    }
     (async () => {
       // Sequential — one failing root shouldn't block others. Each addRoot
       // surfaces its own toast on error (TCC-denied, missing, unmounted).
@@ -30,6 +33,7 @@ export function useWorkspacePersistence() {
           console.warn(`Could not restore workspace root: ${path}`, e);
         }
       }
+      useWorkspaceStore.getState().setRestorationComplete(true);
     })();
   }, [loaded]);
 

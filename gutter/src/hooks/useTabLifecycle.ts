@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { useUnsavedChangesStore } from "../stores/unsavedChangesStore";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useEditorStore } from "../stores/editorStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
@@ -251,24 +251,76 @@ export function useTabLifecycle(
     activateTab(id);
   }, [deactivateCurrentTab, activateTab, addTab, tabContentCache]);
 
-  // Handle file-open from OS (startup or running)
-  useEffect(() => {
-    // Check for file passed at startup
-    invoke<string | null>("get_open_file_path").then((path) => {
-      if (path) {
-        handleFileTreeOpen(path);
+  // Route a file path delivered by the OS (cold-start argv, RunEvent::Opened,
+  // or single-instance forward). If the file's parent directory is not
+  // covered by an existing workspace root, add it as a new root before
+  // opening the tab. Augments saved roots; never replaces them.
+  const routeFileFromOS = useCallback(
+    async (path: string) => {
+      try {
+        const canonical = await invoke<string>("canonicalize_path", { path });
+        const parent = parentDir(canonical);
+        const { roots } = useWorkspaceStore.getState();
+        const covered = roots.some(
+          (r) =>
+            parent === r.path ||
+            parent.startsWith(r.path + "/") ||
+            parent.startsWith(r.path + "\\"),
+        );
+        if (!covered) {
+          await useWorkspaceStore
+            .getState()
+            .addRoot(parent)
+            .catch(() => {
+              // addRoot surfaces its own toast on access errors; proceed to
+              // open the file as a tab regardless.
+            });
+        }
+      } catch {
+        // canonicalize failed (file missing / TCC) — fall through; the file
+        // open below will surface the user-facing error.
       }
-    });
+      await handleFileTreeOpen(path);
+    },
+    [handleFileTreeOpen],
+  );
 
-    // Listen for files opened while running
+  // Serialize OS file-opens via a promise queue so concurrent opens (e.g.
+  // multi-select in Finder) don't race addRoot against itself.
+  const openFileQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const enqueueOpen = useCallback(
+    (path: string) => {
+      openFileQueueRef.current = openFileQueueRef.current
+        .then(() => routeFileFromOS(path))
+        .catch(console.error);
+    },
+    [routeFileFromOS],
+  );
+
+  // Cold-start drain: wait for workspace persistence to finish restoring
+  // saved roots so the coverage check runs against the right set, then
+  // drain any OS file-opens that arrived before the listener was ready.
+  // Calling get_open_file_path also signals the backend that the listener
+  // is now live — subsequent OS opens go straight through.
+  const restorationComplete = useWorkspaceStore((s) => s.restorationComplete);
+  const coldStartHandledRef = useRef(false);
+  useEffect(() => {
+    if (!restorationComplete || coldStartHandledRef.current) return;
+    coldStartHandledRef.current = true;
+    invoke<string[]>("get_open_file_path").then((paths) => {
+      paths.forEach(enqueueOpen);
+    });
+  }, [restorationComplete, enqueueOpen]);
+
+  // Warm-app file-open events.
+  useEffect(() => {
     const unlisten = listen<string>("open-file", (event) => {
-      handleFileTreeOpen(event.payload);
+      enqueueOpen(event.payload);
     });
-
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [handleFileTreeOpen]);
+  }, [enqueueOpen]);
 
   // Wiki link click handler
   useEffect(() => {
@@ -346,11 +398,30 @@ export function useTabLifecycle(
     async (path: string) => {
       const tab = openTabs.find((t) => t.path === path);
       if (tab?.isDirty) {
-        const discard = await ask(
-          `"${tab.name}" has unsaved changes. Close without saving?`,
-          { title: "Unsaved Changes", kind: "warning", okLabel: "Close Without Saving", cancelLabel: "Cancel" },
-        );
-        if (!discard) return; // User cancelled — keep tab open
+        const wasActiveAtPrompt = useWorkspaceStore.getState().activeTabPath === path;
+        const message = wasActiveAtPrompt
+          ? `"${tab.name}" has unsaved changes.\nWhat do you want to do?`
+          : `"${tab.name}" has unsaved changes (this tab is not currently active).\nWhat do you want to do?\n\nNote: Save here only saves if this is the active tab.`;
+        const result = await useUnsavedChangesStore.getState().confirm(message);
+        if (result === "cancel") return; // keep tab open
+        if (result === "save") {
+          if (!wasActiveAtPrompt) {
+            // Saving a non-active tab is not yet supported — keep it open and surface a toast.
+            useToastStore.getState().addToast(
+              "Activate the tab first to save it, then close.",
+              "info",
+            );
+            return;
+          }
+          try {
+            await handleSave();
+          } catch (e) {
+            console.error("[close-tab] save failed:", e);
+            useToastStore.getState().addToast("Save failed — tab not closed", "error");
+            return;
+          }
+        }
+        // result === "discard" → fall through and close
       }
       // Clean up cached content for this tab
       tabContentCache.current.delete(path);

@@ -2,14 +2,25 @@ import { describe, it, expect } from "vitest";
 import { parseMarkdown } from "../src/components/Editor/markdown/parser";
 
 describe("Markdown Parser", () => {
-  it("parses headings", () => {
+  it("parses headings (nested into section wrappers)", () => {
     const doc = parseMarkdown("# Heading 1\n\n## Heading 2\n\n### Heading 3");
-    expect(doc.content).toHaveLength(3);
-    expect(doc.content![0].type).toBe("heading");
-    expect(doc.content![0].attrs?.level).toBe(1);
-    expect(doc.content![0].content![0].text).toBe("Heading 1");
-    expect(doc.content![1].attrs?.level).toBe(2);
-    expect(doc.content![2].attrs?.level).toBe(3);
+    // Headings are wrapped into nested section nodes for collapse/expand:
+    // [section[H1, section[H2, section[H3]]]]
+    expect(doc.content).toHaveLength(1);
+
+    const sec1 = doc.content![0];
+    expect(sec1.type).toBe("section");
+    expect(sec1.content![0].type).toBe("heading");
+    expect(sec1.content![0].attrs?.level).toBe(1);
+    expect(sec1.content![0].content![0].text).toBe("Heading 1");
+
+    const sec2 = sec1.content![1];
+    expect(sec2.type).toBe("section");
+    expect(sec2.content![0].attrs?.level).toBe(2);
+
+    const sec3 = sec2.content![1];
+    expect(sec3.type).toBe("section");
+    expect(sec3.content![0].attrs?.level).toBe(3);
   });
 
   it("parses paragraphs with inline formatting", () => {

@@ -39,6 +39,9 @@ import { MarkdownLinkInput } from "./extensions/MarkdownLinkInput";
 import { LinkReveal } from "./extensions/LinkReveal";
 import { WikiLinkAutocomplete } from "./extensions/WikiLinkAutocomplete";
 import { BlockGapInserter } from "./extensions/BlockGapInserter";
+import { Section } from "./extensions/Section";
+import { useWorkspaceStore } from "../../stores/workspaceStore";
+import { useFoldStatePersistence } from "../../hooks/useFoldStatePersistence";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { createFindReplacePlugin } from "../FindReplace";
@@ -237,6 +240,7 @@ export const GutterEditor = forwardRef<GutterEditorHandle, GutterEditorProps>(
         TaskList,
         TaskItem.configure({ nested: true }),
         BlockGapInserter,
+        Section,
       ],
       content: (() => {
         const storeContent = useEditorStore.getState().content;
@@ -277,7 +281,13 @@ export const GutterEditor = forwardRef<GutterEditorHandle, GutterEditorProps>(
             ],
           };
       })(),
-      onUpdate: ({ editor: e }) => {
+      onUpdate: ({ editor: e, transaction }) => {
+        // Skip non-doc-changing transactions (selection, plugin meta,
+        // decoration updates). TipTap fires onUpdate for those too, and a
+        // setMeta dispatched from useEffects on editor mount was falsely
+        // dirtying freshly-opened tabs.
+        if (!transaction.docChanged) return;
+
         const json = e.getJSON();
         const md = serializeMarkdown(json);
         setDirty(true);
@@ -465,6 +475,10 @@ export const GutterEditor = forwardRef<GutterEditorHandle, GutterEditorProps>(
     useEffect(() => {
       editorRef.current = editor;
     }, [editor]);
+
+    // Persist + restore section fold state across tab switches
+    const activeTabPath = useWorkspaceStore((s) => s.activeTabPath);
+    useFoldStatePersistence(editor, activeTabPath);
 
     // Right-click context menu
     const handleContextMenu = useCallback(

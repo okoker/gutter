@@ -1969,3 +1969,72 @@
   padding: 0.1em 0.4em;
   border-radius: 4px;
 }
+
+/* Section fold — heading collapse/expand. Section is a wrapper node owning a
+   permanent chevron button + a contentDOM holding the heading and body. */
+.fold-section {
+  position: relative;
+}
+/* The heading inside a section keeps its own bottom margin (paragraph spacing
+   below the heading) but loses its top margin so the chevron can align with the
+   first text line cleanly. Section spacing is provided by the section itself. */
+.fold-section-content > :first-child {
+  margin-top: 0;
+}
+.fold-section + .fold-section,
+.fold-section-content > .fold-section {
+  margin-top: 1rem;
+}
+.ProseMirror > .fold-section:first-child {
+  margin-top: 0;
+}
+
+.fold-section-chevron {
+  position: absolute;
+  left: -1.5em;
+  top: 0.35em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0.35;
+  pointer-events: auto;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+  user-select: none;
+  z-index: 2;
+}
+.fold-section-chevron svg {
+  display: block;
+  pointer-events: none;
+  transition: transform 150ms ease;
+}
+.fold-section:hover > .fold-section-chevron {
+  opacity: 0.85;
+}
+.fold-section-chevron:hover,
+.fold-section-chevron:focus-visible {
+  opacity: 1;
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.fold-section.is-folded > .fold-section-chevron {
+  opacity: 0.85;
+}
+.fold-section.is-folded > .fold-section-chevron svg {
+  transform: rotate(-90deg);
+}
+
+/* When folded, hide every direct child of contentDOM except the heading
+   (always the first child per schema). */
+.fold-section.is-folded > .fold-section-content > *:not(:first-child) {
+  display: none;
+}
+
+

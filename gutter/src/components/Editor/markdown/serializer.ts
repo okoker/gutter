@@ -32,6 +32,10 @@ export function serializeMarkdown(doc: JSONContent): string {
     contentNodes = doc.content.slice(1);
   }
 
+  // Un-nest section wrappers added by the parser. Markdown is flat; sections
+  // exist only in memory to drive the fold UI.
+  contentNodes = flattenSections(contentNodes);
+
   const blocks = contentNodes.map((node, i) =>
     serializeBlock(node, contentNodes, i),
   );
@@ -46,6 +50,23 @@ export function serializeMarkdown(doc: JSONContent): string {
     body += blocks[i];
   }
   return frontmatter + body + "\n";
+}
+
+/**
+ * Recursively un-nest section wrappers, returning a flat block list in
+ * document order. Sections are an in-memory wrapper for the fold UI; markdown
+ * has no syntax for them.
+ */
+function flattenSections(blocks: JSONContent[]): JSONContent[] {
+  const out: JSONContent[] = [];
+  for (const b of blocks) {
+    if (b.type === "section" && b.content) {
+      out.push(...flattenSections(b.content));
+    } else {
+      out.push(b);
+    }
+  }
+  return out;
 }
 
 function serializeBlock(

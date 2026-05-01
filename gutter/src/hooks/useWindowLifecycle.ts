@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useEditorStore } from "../stores/editorStore";
@@ -8,6 +8,7 @@ import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useTagStore } from "../stores/tagStore";
 import { useToastStore } from "../stores/toastStore";
+import { useUnsavedChangesStore } from "../stores/unsavedChangesStore";
 import { parentDir, joinPath, isImageFile } from "../utils/path";
 
 /**
@@ -23,6 +24,7 @@ export function useWindowLifecycle(
   } | null>,
   handleFileTreeOpen: (path: string) => Promise<void>,
   setVersionPreview: (v: { content: string; label: string } | null) => void,
+  handleSave: () => Promise<void>,
 ) {
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const workspacePath = useWorkspaceStore((s) => s.workspacePath);
@@ -40,31 +42,56 @@ export function useWindowLifecycle(
     }
   }, [workspacePath]);
 
-  // Prevent closing window with dirty tabs
+  // Shared dirty-check + Save/Discard/Cancel flow. Returns true if the
+  // caller should proceed with closing, false if the user cancelled or save
+  // failed.
   useEffect(() => {
-    const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
-      try {
-        const { openTabs: tabs } = useWorkspaceStore.getState();
-        const hasDirty = tabs.some((t) => t.isDirty);
-        if (hasDirty) {
-          event.preventDefault();
-          const discard = await ask(
-            "You have unsaved changes. Close without saving?",
-            { title: "Unsaved Changes", kind: "warning", okLabel: "Close Without Saving", cancelLabel: "Cancel" },
-          );
-          if (discard) {
-            getCurrentWindow().destroy();
-          }
+    async function confirmCloseAllowed(): Promise<boolean> {
+      const { openTabs: tabs } = useWorkspaceStore.getState();
+      const dirtyTabs = tabs.filter((t) => t.isDirty);
+      if (dirtyTabs.length === 0) return true;
+      const dirtyNames = dirtyTabs.map((t) => t.name).join(", ");
+      const message =
+        dirtyTabs.length === 1
+          ? `"${dirtyTabs[0].name}" has unsaved changes.\nWhat do you want to do?`
+          : `${dirtyTabs.length} tabs have unsaved changes (${dirtyNames}).\nWhat do you want to do?\n\nNote: Save will only save the currently active tab.`;
+      const result = await useUnsavedChangesStore.getState().confirm(message);
+      if (result === "cancel") return false;
+      if (result === "save") {
+        try {
+          await handleSave();
+        } catch (e) {
+          console.error("[close-handler] save failed:", e);
+          useToastStore.getState().addToast("Save failed — close cancelled", "error");
+          return false;
         }
-      } catch {
-        // If dialog fails, close anyway
+      }
+      return true;
+    }
+
+    // Window red-button (and any future window-close request from the OS).
+    const unlistenClose = getCurrentWindow().onCloseRequested(async (event) => {
+      const ok = await confirmCloseAllowed();
+      if (!ok) {
+        event.preventDefault();
+      }
+    });
+
+    // Cmd+Q via the custom Quit menu item. Tauri's predefined .quit() calls
+    // process::exit directly without firing any RunEvent, so we route Cmd+Q
+    // through a custom menu item that emits this event instead.
+    const unlistenQuit = listen("menu:quit-requested", async () => {
+      const ok = await confirmCloseAllowed();
+      if (ok) {
         getCurrentWindow().destroy();
       }
     });
+
     return () => {
-      unlisten.then((fn) => fn());
+      unlistenClose.then((fn) => fn());
+      unlistenQuit.then((fn) => fn());
     };
-  }, []);
+  }, [handleSave]);
 
   // Handle files dragged from OS file explorer
   useEffect(() => {
