@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-_No changes yet since 0.9.0._
+*No changes yet since 0.9.0.*
 
 ---
 
@@ -32,67 +32,45 @@ First versioned fork release. Captures everything fork-only since the 0.3.8 fork
   - **Backspace symmetry:** Backspace at the start of an empty paragraph following a section deletes it cleanly (works around `defining: true` blocking the default `joinBackward` merge).
   - *Technical:* implemented per the [official ProseMirror folding example](https://prosemirror.net/examples/fold/) — schema-level wrapper node + NodeView + decoration plugin. Schema: `section { content: "heading block*", group: "block" }`. Parser `wrapSections` post-pass nests headings by level; serializer `flattenSections` pre-pass un-nests before writing — markdown on disk is byte-identical, sections are an in-memory wrapper only. Fold plugin tracks state as a `DecorationSet` with `{foldSection: true}` spec; NodeView's `update(node, decorations)` reads the spec and toggles the `.is-folded` class. CSS hides every contentDOM child except the heading. Disambiguates nested sections at the same point via `from === pos` filter on decoration removal.
 
-- **Open-file-from-OS routing.** Double-clicking a `.md`/`.markdown` file in Finder/Explorer (or a multi-file selection) now opens those files in Gutter and intelligently augments the workspace: a file inside an open root just opens a tab; otherwise the parent directory is added as an additional root. Multi-file selections all open; the last is focused. Cold-start works via a `frontend_ready` gate (Rust stashes paths in `OpenFileState` until the React listener is ready).
-
 - **Multi-root workspace.** Multiple folders can be open in the sidebar simultaneously, VS Code-style.
   - File menu / command palette: **Add Folder to Workspace** appends a root without closing the others.
   - Sidebar: each root renders as a stacked, collapsible section with chevron + right-click context menu (e.g. **Close Folder**, which leaves files on disk untouched and keeps any open tabs from that root open).
   - Preference: **Restore workspace on launch** (default on). Open roots persist; toggling off keeps the saved list intact so re-enabling later restores it.
   - Confirmation dialog before **Open Folder** (menu and sidebar header) replaces the current workspace, since "open" implies clean-slate semantics.
   - *Technical:* `workspaceStore` rewritten around a `roots: WorkspaceRoot[]` shape with backward-compat mirrors (`workspacePath` / `fileTree` / `loadFileTree`) so the 20+ existing consumers keep working during phased migration. Per-root watchers via a `HashMap<PathBuf, RecommendedWatcher>` in Rust; `useMultiRootWatcher` diffs roots against running watchers and routes `tree-changed` events to the right root. Idempotent under React 19 StrictMode double-invoke.
-
 - **Snippet library.** Reusable text/markdown chunks stored at `~/.gutter/snippets/`.
   - Right-sidebar **Snippets** panel (`Cmd+Shift+L`, plus View menu and command palette entries) lists every text file under `~/.gutter/snippets/` with first-line preview.
   - Single-click opens a snippet as a regular tab; double-click inserts at the cursor (250 ms debounce so double doesn't trigger the open). Right-click for **Insert / Copy / Open / Rename / Delete**.
   - Editor right-click menu: **Save Selection as Snippet** (filename modal) and **Insert Snippet…** (fuzzy-searchable picker mirroring the unified-search UX).
   - Status-bar icon (Copy glyph) toggles the panel, placed rightmost in the panel cluster.
   - *Technical:* six Tauri commands (`ensure_snippets_dir`, `list_snippets`, `read_snippet`, `save_snippet`, `delete_snippet`, `rename_snippet`). Text-file heuristic: ≤1 MB, `is_file()` after symlink-follow, no null byte in first 4 KB, UTF-8 lossy decode tolerates BOM. Filename validation rejects path separators, `..`, leading dots. 4 Rust unit tests + 6 store unit tests cover happy/sad paths and IPC arg contracts.
-
 - **Welcome screen — Open Folder button.** Third primary action alongside New File / Open File. Routes to the same multi-root `addRoot` flow as the menu entry.
-
 - **Welcome screen — New from Template button.** Fourth action that opens the existing template picker in a no-workspace flow: pick a template, native save dialog chooses where the new file lands. Existing 3 entry points (menu, command palette, folder right-click) keep their inline-filename behaviour.
   - *Technical:* added a `useSaveDialog` flag on `TemplatePicker`. Filename for the dialog's default-path is sanitized for Windows-illegal characters (`: * ? " < > |`). `write_file` gains a defense-in-depth guard rejecting paths resolving under `~/.gutter/templates/` so the dialog can't accidentally overwrite a source template.
 
 ### Changed
 
 - **Unsaved-changes dialog — Save / Discard / Cancel.** Replaces the binary `ask()` confirmation that previously fired on window close, tab close, and Cmd+Q. Now offers three options: Save (writes and closes), Discard (closes without saving), Cancel (aborts). Cmd+Q goes through the same flow — the menu's Quit item is now a custom command that emits `menu:quit-requested` rather than Tauri's default `.quit()` which calls `process::exit` directly and bypasses the dialog. Esc cancels, Enter saves.
-
 - **Subfolders collapse by default in new workspace roots.** Previously immediate children of a root expanded automatically, producing a wall of pre-expanded folders when adding a root. Only the root header opens by default now; per-path expansion still survives root collapse/re-expand.
-
 - **All right-side panels closed by default on launch.** Comments was previously open by default. With Snippets/History/Tags/Comments all available and users varying in preference, no panel auto-opens — users open whichever they want.
-
 - **Uniform root-header prominence.** Every workspace root header now renders identically (bold, primary text, hover background). The earlier active-vs-inactive distinction was too subtle and signalled a capability the MVP doesn't expose.
-
 - **Snippet rename updates open tab paths.** When a snippet is renamed from the panel, any tab holding the old path is migrated to the new path so subsequent saves land on the right file. Cross-platform path handling (`parentDir` + `joinPath`), so Windows paths with backslashes work too.
-
 - **Toast durations.** Errors 8 s, info 5 s, success 4 s (was uniform 4 s). Errors need time to read; success just confirms.
 
 ### Fixed
 
 - **Editor falsely dirtied freshly-opened tabs.** TipTap's `onUpdate` fires for every transaction, including plugin-meta dispatches and decoration updates that don't change the doc. A `setMeta` from a `useEffect` on editor mount was setting the dirty flag for tabs the user hadn't touched. `onUpdate` now gates on `transaction.docChanged` so non-doc-changing transactions are skipped.
-
 - **Editor lost user-typed blank lines on save+reload.** Pressing Enter to insert empty paragraphs between paragraphs, bullets, or checkboxes round-tripped to zero — CommonMark/remark collapses repeated blank lines and merges separated list items into one "loose" list, absorbing the gap. Parser now uses mdast position info to recover the gap: at the doc root it injects empty-paragraph nodes for each blank-line gap of 2+; inside any list it splits the list at items separated by 2+ blank lines and emits empty paragraphs between the resulting sub-lists. Ordered lists carry running item counts forward so numbering stays correct. Trailing blank lines are also recovered. Serializer prefixes empty blocks with a single newline instead of `\n\n` so round-trip is stable: N empty paragraphs ⇒ N+1 blank lines in source ⇒ parser reconstructs N empty paragraphs.
-
 - **Folder chevron toggled the wrong folder in the sidebar.** Folder rows lacked `position: relative`, so the absolutely-positioned indent-guide wrapper at depth > 0 resolved against a high ancestor and intercepted clicks at top-level chevron coordinates. Mirrors the pattern already on the file row.
-
 - **macOS file watcher panicked on atomic-rename writes (Typora, VS Code, vim atomic-save).** `notify`'s `kqueue` backend crashed inside `Option::unwrap()` and silently killed the watcher thread for the rest of the session. Switched to default FSEvents backend; `kqueue` feature dropped from `Cargo.toml`. Known limitation: FSEvents doesn't fire for remote-side changes on network-mounted or iCloud "Optimise Storage" paths — workspaces on local disk are unaffected.
-
 - **Open tabs stayed stale after external atomic-rename writes.** Watcher only emitted `file-changed` inside `EventKind::Modify`, but atomic-rename lands as `Create` + `Remove`. Watcher now emits `file-changed` for every non-ignored, non-suppressed path regardless of `EventKind`, plus `tree-changed` once per event. Frontend payload-filter on `openTabs` makes directory paths and unrelated files harmlessly drop.
-
 - **Native menu listeners stacked one extra copy per re-render.** `useEffect` had the mutable actions object in its dep array, so listeners unlistened/relistened on every render. Harmless for sync handlers; manifested as an N-stacked async dialog loop after the multi-root work introduced an `ask()` confirmation. Root-cause fix: hook now holds actions in a refreshed-each-render ref and attaches `tauri.listen()` exactly once via `[]` deps.
-
 - **Snippets panel preview didn't update after saving.** Panel only refreshed on mount. `useSaveHandler` and `useFileOps.scheduleAutoSave` now both dispatch a `file-saved` CustomEvent; SnippetsPanel listens and re-runs `refreshSnippets`.
-
 - **Workspace restore on launch toasted errors for missing/TCC-blocked paths.** `addRoot` gained an optional `silentError` flag; restore path uses it to log to console and skip silently instead of toast-spamming at startup.
-
 - **Snippet single-click opened the snippet as a tab in the same gesture that double-click was meant to insert it.** Single-click now defers 250 ms via a ref-backed timer; double-click cancels the timer and runs the insert against the previously-active editor.
-
 - **Copy to Clipboard failed in the Tauri webview after async file read.** `navigator.clipboard.writeText` requires the user gesture to be active; an `await` between click and write consumes it. Snippets pre-cache content into a ref on right-click (while the context menu is visible) so the Copy click can read synchronously. Also added a hidden-textarea + `document.execCommand("copy")` fallback for edge cases.
-
 - **Save Selection as Snippet was disabled by hardBreak / horizontalRule.** Atom-node check was too broad; narrowed to types where `textBetween` would actually drop content (`mermaidBlock`, `mathBlock`, `mathInline`, `image`).
-
 - **Save Selection as Snippet silently no-op'd.** `window.prompt` is disabled in the Tauri webview. Replaced with a custom `SnippetNamePrompt` modal driven by a `save-selection-as-snippet` CustomEvent dispatched from the editor.
-
 - **Folder expanded state lost when its workspace root collapsed.** When a root section collapses, its child `FileTreeNode`s unmount; on remount the depth-0 folders defaulted back to expanded. `expandedPathsRef` is now `Map<path, boolean>` (was `Set<string>`); each node reads/writes its initial state through it. Survives unmount because the ref lives on the still-mounted `FileTree` parent.
 
 ---
@@ -100,3 +78,4 @@ First versioned fork release. Captures everything fork-only since the 0.3.8 fork
 ## Versions before the fork
 
 Releases v0.1.0 through v0.3.8 are inherited from upstream `davidrigie/gutter` and not enumerated here. See the [upstream changelog](https://github.com/davidrigie/gutter) for those.
+
