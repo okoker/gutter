@@ -26,9 +26,9 @@ Gutter is a local-first WYSIWYG markdown editor with first-class commenting, bui
 
 ## Planning
 
-- **Active plan**: `POLISH_PLAN.md` — concise status overview. All 15 phases complete.
-- **Phase details**: Upcoming phases in `docs/plans/` (one file per phase). Completed phase details in `docs/completed-plans/polish-phases-1-11.md`.
-- **Completed plans**: Sprint 1 build plan archived in `docs/completed-plans/`.
+- **Active plan**: `docs/plans/master_plan.md` — hard fork → rebrand → encryption Phase 1 (currently blocked on app-name decision A1).
+- **Historical**: `POLISH_PLAN.md` — Polish v1 status overview, all 15 phases complete. Kept for reference; superseded by master plan.
+- **Completed plans**: archived in `docs/completed-plans/` (polish phases 1–11, Sprint 1 build plan, multi-root, snippets, templates, tags, version history, reading mode, open-file-from-OS, quick wins).
 
 ## Commands
 
@@ -54,11 +54,13 @@ Frontend calls Rust functions via `invoke()` from `@tauri-apps/api/core`. All Ru
 - **file_io.rs** — read/write/create/delete/rename files and directories, `open_url` for external links
 - **comments.rs** — read/write/delete comment sidecar files (`.comments.json`, `.comments.md`)
 - **workspace.rs** — recursive directory listing (filters hidden files and comment files, max depth 10)
-- **watcher.rs** — file system watcher with `mark_write()` suppression to avoid false change notifications
-- **export.rs** — export to HTML with inline CSS
+- **watcher.rs** — per-root file system watchers (`HashMap<PathBuf, RecommendedWatcher>`) with `mark_write()` per-path suppression to avoid false change notifications
+- **export.rs** — export to HTML with inline CSS (sanitized: dangerous tags + `on*` attrs stripped)
 - **settings.rs** — reads/writes `~/.gutter/config.json`
 - **search.rs** — full-text workspace search (headings + content), case-insensitive, returns capped results
 - **history.rs** — local snapshot CRUD (save/list/read/update/delete) with SHA-256 dedup + git history (log/show)
+- **templates.rs** — list/read/save/delete templates in `~/.gutter/templates/`; `validate_template_name` rejects path-traversal
+- **snippets.rs** — list/read/save/delete/rename snippets in `~/.gutter/snippets/`; text-file heuristic (≤1 MB, no null byte in first 4 KB, UTF-8 lossy)
 
 Additionally, `src-tauri/src/menu.rs` (not a command module) builds the native menu bar and emits `menu:*` events to the frontend.
 
@@ -66,13 +68,15 @@ Additionally, `src-tauri/src/menu.rs` (not a command module) builds the native m
 
 Stores in `src/stores/`:
 
-- **editorStore** — UI state: file path, dirty flag, theme, panel visibility, source mode, active comment, `commentTexts` (maps commentId → quoted text), `canUndo`/`canRedo`, `showOutline`, `showHistory`, `showTags`
+- **editorStore** — UI state: file path, dirty flag, theme, panel visibility, source mode, reading mode, active comment, `commentTexts` (maps commentId → quoted text), `canUndo`/`canRedo`, `showOutline`, `showHistory`, `showTags`, `showSnippets`
 - **commentStore** — comment thread data, CRUD ops, ID generation (`c1`, `c2`...), JSON export/import
-- **workspaceStore** — file tree structure, open tabs, active tab, tab dirty state
-- **settingsStore** — user preferences (font size, font family, auto-save, spell check, panel widths, recent files, default author)
-- **toastStore** — toast notification system with type, duration, auto-dismiss
-- **backlinkStore** — scans workspace for backlinks to current file
+- **workspaceStore** — multi-root model: `roots: WorkspaceRoot[]` (each with path/name/tree/expanded), `activeRootPath`, open tabs (with `diskHash`, `externallyModified`, `foldedPositions`), active tab. Backward-compat mirrors (`workspacePath`/`fileTree`/`loadFileTree`) kept in sync for ~20 legacy call sites
+- **settingsStore** — user preferences (font size, font family, auto-save, spell check, panel widths, recent files, default author, restore-workspace-on-launch)
+- **toastStore** — toast notification system with type, duration, auto-dismiss (errors 8s, info 5s, success 4s)
+- **backlinkStore** — scans active root's workspace for backlinks to current file
 - **tagStore** — workspace-wide tag index (`tagToFiles`/`fileToTags` maps), tag selection for file tree filtering, list/cloud view mode
+- **snippetStore** — `~/.gutter/snippets/` index, CRUD, refresh-on-save via `file-saved` CustomEvent
+- **unsavedChangesStore** — drives the Save / Discard / Cancel dialog used on tab close, window close, and Cmd+Q
 
 ### Comment System (Three-File Model)
 
@@ -113,7 +117,8 @@ Custom TipTap extensions in `src/components/Editor/extensions/`:
 - **SlashCommands.tsx** — vanilla DOM slash command menu (no `@tiptap/suggestion` dependency)
 - **CodeBlockWithLang.tsx** — code blocks with language selector dropdown
 - **MathBlock.tsx** — KaTeX rendering, block (`$$`) and inline (`$`)
-- **MermaidBlock.tsx** — Mermaid diagram rendering with edit mode
+- **MermaidBlock.tsx** — Mermaid diagram rendering with edit mode (`securityLevel: "strict"` after XSS audit)
+- **ImageBlock.tsx** — image node view (paste / drop / dialog); `~/Pictures/Gutter/` saves via Rust
 - **WikiLink.ts** — hides `[[`/`]]` brackets on non-active lines, styles wiki links
 - **WikiLinkAutocomplete.ts** — fuzzy file picker triggered on `[[`
 - **LinkReveal.ts** — Typora-style line reveal for headings, bold, italic, strike, code, links, wiki links
@@ -121,6 +126,7 @@ Custom TipTap extensions in `src/components/Editor/extensions/`:
 - **Frontmatter.tsx** — YAML frontmatter support with edit mode
 - **SpellCheck.ts** — toggleable spell check
 - **BlockGapInserter.ts** — click between adjacent block nodes to insert paragraphs
+- **Section.ts** — heading-fold wrapper node + NodeView + decoration plugin (`section { content: "heading block*" }`); `wrapSections`/`flattenSections` keep markdown on disk byte-identical
 
 ### Cross-Component Communication (CustomEvents)
 
@@ -147,9 +153,9 @@ In `src/components/Editor/markdown/`:
 
 ### Key Keyboard Shortcuts
 
-Defined in `App.tsx` `handleKeyDown`. Uses `modKey(e)` helper from `src/utils/platform.ts` for cross-platform support (Cmd on macOS, Ctrl on Windows/Linux):
+Defined in `src/hooks/useKeyboardShortcuts.ts`. Uses `modKey(e)` helper from `src/utils/platform.ts` for cross-platform support (Cmd on macOS, Ctrl on Windows/Linux):
 
-Mod+K (unified search), Mod+O (open), Mod+S (save), Mod+P (quick open files), Mod+F (find), Mod+H (find & replace), Mod+/ (toggle source), Mod+\ (file tree), Mod+. (commands), Mod+Shift+C (comments), Mod+Shift+H (version history), Mod+Shift+T (tag browser), Mod+Shift+R (reading mode), Mod+Shift+D (theme), Mod+Shift+P (commands alt), Mod+Shift+M (new comment), Mod+Shift+N (next comment), Mod+Shift+E (export).
+Mod+N (new file), Mod+O (open), Mod+S (save), Mod+K (unified search), Mod+P (quick open files), Mod+, (preferences), Mod+F (find), Mod+H (find & replace), Mod+/ (toggle source), Mod+\ (file tree), Mod+. (commands), Mod+Shift+C (comments), Mod+Shift+H (version history), Mod+Shift+T (tag browser), Mod+Shift+L (snippets), Mod+Shift+R (reading mode), Mod+Shift+D (theme), Mod+Shift+P (commands alt), Mod+Shift+M (new comment), Mod+Shift+N (next comment), Mod+Shift+E (export).
 
 ### Utilities
 

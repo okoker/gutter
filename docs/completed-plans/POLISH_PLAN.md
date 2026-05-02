@@ -1,4 +1,6 @@
-# Gutter Polish Plan
+# Gutter Polish Plan (archived)
+
+> **Status: complete and superseded.** All 15 polish phases shipped. Forward planning lives in [`docs/plans/master_plan.md`](../plans/master_plan.md) (hard fork → rebrand → encryption Phase 1). Post-polish work since this doc was frozen: multi-root workspace, snippets, templates with seeded defaults, tag system, version history, reading mode, heading fold, open-file-from-OS, save/discard/cancel dialog, plus the 0.9.0 security audit fixes.
 
 ## Status
 
