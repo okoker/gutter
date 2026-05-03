@@ -146,6 +146,7 @@ const MARK_SYNTAX: Record<string, { open: string; close: string }> = {
 function syntaxWidget(text: string): HTMLSpanElement {
   const span = document.createElement("span");
   span.className = "line-reveal-syntax";
+  span.contentEditable = "false";
   span.textContent = text;
   return span;
 }
@@ -223,6 +224,7 @@ export const LinkReveal = Extension.create({
                 Decoration.widget(link.to, () => {
                   const span = document.createElement("span");
                   span.className = "line-reveal-syntax";
+                  span.contentEditable = "false";
                   span.textContent = `](${link.href})`;
                   return span;
                 }, { side: 1 }),
