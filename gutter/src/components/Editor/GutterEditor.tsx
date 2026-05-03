@@ -591,6 +591,23 @@ export const GutterEditor = forwardRef<GutterEditorHandle, GutterEditorProps>(
             label: "Horizontal Rule",
             action: () => editor.chain().focus().setHorizontalRule().run(),
           },
+          {
+            label: "Remove Formatting",
+            action: () => {
+              // Always strip inline marks (bold, italic, strike, code,
+              // link, etc.). Only downgrade headings to paragraphs;
+              // leave lists, task items, blockquotes, code blocks alone
+              // — those are structure, not formatting.
+              const { from, to } = editor.state.selection;
+              let hasHeading = false;
+              editor.state.doc.nodesBetween(from, to, (node) => {
+                if (node.type.name === "heading") hasHeading = true;
+              });
+              const chain = editor.chain().focus().unsetAllMarks();
+              if (hasHeading) chain.setParagraph();
+              chain.run();
+            },
+          },
         );
 
         // Snippets — save selection / insert from library
