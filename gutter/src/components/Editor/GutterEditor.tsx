@@ -190,6 +190,8 @@ export const GutterEditor = forwardRef<GutterEditorHandle, GutterEditorProps>(
           HTMLAttributes: { rel: "noopener noreferrer" },
         }),
         Image.extend({
+          inline: true,
+          group: "inline",
           addAttributes() {
             return {
               ...this.parent?.(),
