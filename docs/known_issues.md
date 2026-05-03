@@ -48,6 +48,18 @@ Limitations and partially-mitigated risks accepted in the current scope, with pl
 
 ---
 
+## Markdown input rules are typing-direction-dependent
+
+**Limit:** typing inline markdown syntax in right-to-left order doesn't pick up. Concrete repro: type `Dawm**` first, then prepend `**` before "Dawm" → result is plain text `**Dawm**`, not bold. Typing left-to-right (`**Dawm**` in order) works correctly.
+
+**Why:** ProseMirror's `markInputRule` (and TipTap's StarterKit wrapper around it) only fires on *text-insert* events, with the regex anchored at the end of the inserted text (`...$`). When the user types the closing `**` first, no opening `**` exists yet — no match. When the user later prepends the opening `**`, the cursor is right after the prepended characters; the text-before-cursor is just `**`, not the full `**X**` pattern → no match. The input-rules system does not scan the document for completed patterns regardless of typing direction.
+
+**Workaround for users:** type left-to-right, OR select the word and use Cmd+B / right-click → Bold. The toolbar/menu path bypasses input rules and applies the mark directly via `toggleBold()`.
+
+**Why this isn't fixed:** the workaround is reliable, the limit is shared by most WYSIWYG markdown editors (Typora, Obsidian source mode, Notion, Milkdown), and a custom pattern-scanner that runs on every text input has cost (input-rule conflicts, performance) without changing what most users actually do (left-to-right typing). If an active-line redesign happens (see `docs/backlog.md` "Line-reveal widget UX trap"), a pattern-scanner becomes natural to add at that point.
+
+---
+
 ## Plaintext residue on interrupted conversion (Phase 1, accepted)
 
 **Risk:** the conversion between 3 plaintext files (`notes.md` + `notes.comments.json` + `notes.comments.md`) and 1 encrypted file (`notes.emd`) is not atomic on POSIX/NTFS/APFS — there is no syscall for deleting N files atomically. The Phase 1 design uses strict write ordering: the encrypted target is written, fsync'd, and verified by round-trip decrypt before any plaintext is deleted. But the deletion step itself is sequential, and a process death (crash, kill, power loss) between "target verified" and "all companions deleted" leaves both states on disk. The encrypted file is correct; the plaintext companions are correct; but encryption-at-rest has been silently undermined for those companions until the user notices and removes them.

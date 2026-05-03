@@ -72,3 +72,39 @@ The JS blanket is over-broad — it suppresses events for unrelated files too, n
 ### Active-root visual indicator (deferred from multi-root MVP)
 
 Earlier the active-vs-inactive root header distinction was too subtle (11px uppercase, bold/muted weight delta). Resolved in 0.9.0 by going **uniform** — every root header now renders the same. If we later expose explicit "set active root" UX (see root-header context menu above), revisit a stronger active signal: accent dot, left border, or icon.
+
+## Editor bugs (reported during 0.9.0 testing)
+
+### Line-reveal widget UX trap — partially fixed
+
+Originally `LinkReveal.ts` rendered raw markdown syntax (`**`, `##`, `*`, `~~`, `` ` ``, `[`, `](url)`, `[[`, `]]`) as ProseMirror **widget decorations**. Widgets had visual width but zero document position — they couldn't be selected, clicked into, backspaced over, or cursor-traversed normally. This caused four visible symptoms (a fifth — typing-direction-dependent input rules — moved to `docs/known_issues.md` as a documented limit shared by most WYSIWYG markdown editors):
+
+1. **Can't unbold mid-paragraph** — typing `**bold**` works but the visible `**` is a widget; deleting it does nothing. **OPEN.** Only Cmd+B / context menu can toggle the mark off, and there's no affordance signaling that.
+2. **Up/down arrow into bold lands wrong, snaps right** — vertical caret motion uses visual x-coordinates. **PARTIALLY FIXED 2026-05-03** by setting `contentEditable = "false"` on widget spans (`LinkReveal.ts:146-152, :222-228`). The general up-from-below case is fixed. The "leave a bold line then return to it" edge case still shifts the cursor by the total widget-character width (4 chars per `**X**` pair) because widgets disappear from the line when the cursor leaves and reappear when it returns, changing layout. Tried `width:0; overflow:visible` to make widgets layout-neutral — visually unacceptable (asterisks rendered floating above the line as orphaned dots). Reverted. **Remaining edge case is intrinsic to the requirement** (asterisks visible on active line, clean on inactive ⇒ layout MUST differ between states).
+3. **Stuck heading + bold line** — `## **My information**, must support…` line cannot be unstyled by editing the visible syntax. **OPEN.** `defining: true` on section + heading also blocks default backspace-to-paragraph from start of line. User's only escape is delete-the-whole-line.
+4. **Left-arrow appears to skip over bold** — same root as bug 2. **FIXED 2026-05-03** by the `contentEditable = "false"` change. Browser no longer treats widget chars as cursor stops; cursor traverses widget atomically.
+
+**Open work:** bugs 1 and 3 still require an active-line redesign to make the syntax characters editable text on the active line. See abandoned plan at `docs/plans/active_line_editing.md` (superseded after parallel review by architect + web research + Codex; preserved for reference). Key finding from research: **no Tiptap/ProseMirror editor has shipped this UX in production**; the proven implementations all run on CodeMirror 6 (Obsidian, codemirror-rich-markdoc, HyperMD). Strategic options are (a) build it on Tiptap and be the first to ship this combination, (b) migrate to CodeMirror 6, or (c) accept Tiptap's WYSIWYG-only norms (toolbar/menu-driven formatting like BlockNote, Milkdown, Outline) and document bugs 1/3 as known limits.
+
+### Inline images break editing — schema/parser mismatch — FIXED 2026-05-03
+
+**Symptom (user-reported):** images disappeared when editing text immediately before the image in the same paragraph.
+
+**Root cause (confirmed via investigation):** TipTap's default `Image` extension is `inline: false` (block). Parser emits images as inline children of paragraphs — markdown like `Before ![alt](img.png) after` parses to `{ paragraph, content: [text, image, text] }`, schema-invalid because image is a block node in an inline content array. ProseMirror's `useEditor({ content })` is lenient on initial load, but the first transaction triggers schema validation and throws `RangeError: Invalid content for node paragraph: <text, image, text>` — image gets dropped or shifted.
+
+**Fix:** added `inline: true, group: "inline"` to `Image.extend(...)` in `GutterEditor.tsx:192-194`. Existing tests still pass; on-disk markdown unchanged; cursor navigation around images improved (inline atom — left/right arrow steps cleanly, backspace deletes).
+
+**Cleanup follow-ups (not done, low priority):**
+- `BlockGapInserter.ts:9` — `"image"` entry in `BLOCK_NODE_NAMES` is now unreachable (image isn't a doc-level child anymore). Cosmetic cleanup.
+- `parser.ts:436-444` block-level image case — dead code path. Safe to leave.
+- `serializer.ts:116-127` block image case — dead code path. Safe to leave.
+
+### First-block selection inside heading sections
+
+**Symptom (user-reported):** when there are 5 checkbox lines under a heading or below a horizontal rule, the first checkbox is unreachable by mouse — selecting bottom-up to the top always omits the top item; selecting top-down sometimes can't place the cursor before the first item or click the first checkbox itself. Reproduces specifically when a list sits flush against a heading or HR; goes away when 2 blank lines separate them.
+
+**Root cause:** `BlockGapInserter.ts:44` short-circuits when `$pos.depth !== 0` — the gap-click handler that inserts a paragraph at boundaries only fires for **doc-level** gaps. Sections (`Section.ts`) wrap `heading + block*`, so when a list sits as the first block inside a section (i.e. immediately under a heading), there's no doc-level gap above the list — and the section interior has no gap-click handling at all. Result: no clickable insertion point above the first list item.
+
+**Fix shape (rough):** extend `BlockGapInserter` to also handle gaps **inside section nodes** — when the click resolves inside a section but outside any of its children, insert a paragraph at that boundary. Needs care to not collide with the section's defining boundary semantics or the heading row click area.
+
+**Open question:** should this also apply to gaps inside other block containers (blockquotes, list items)? Probably yes for consistency, but scope first to section interior since that's the user-reported case.
