@@ -34,23 +34,66 @@ export const BlockGapInserter = Extension.create({
             const coords = { left: event.clientX, top: event.clientY };
             const posAtCoords = view.posAtCoords(coords);
 
-            // Only handle clicks that land outside any node (gap area)
-            if (!posAtCoords || posAtCoords.inside !== -1) return false;
+            if (!posAtCoords) return false;
 
-            const pos = posAtCoords.pos;
+            // Determine the gap position. Two paths:
+            //  (1) Click resolves between nodes (inside === -1) — standard
+            //      gap. Use posAtCoords.pos directly.
+            //  (2) Click resolves "inside" a horizontalRule. HRs render as a
+            //      thin line with surrounding margin/space; clicks in that
+            //      visual gap can hit-test as inside the HR rather than as
+            //      a true between-nodes gap. Treat such clicks as a gap
+            //      click adjacent to the HR (above or below based on click
+            //      Y relative to the HR's vertical midpoint).
+            let pos: number;
+            if (posAtCoords.inside === -1) {
+              pos = posAtCoords.pos;
+            } else {
+              const insideNode = view.state.doc.nodeAt(posAtCoords.inside);
+              if (insideNode?.type.name !== "horizontalRule") return false;
+              const dom = view.nodeDOM(posAtCoords.inside);
+              if (!(dom instanceof HTMLElement)) return false;
+              const rect = dom.getBoundingClientRect();
+              const insertAfter =
+                event.clientY > (rect.top + rect.bottom) / 2;
+              pos = insertAfter
+                ? posAtCoords.inside + insideNode.nodeSize
+                : posAtCoords.inside;
+            }
+
             const $pos = view.state.doc.resolve(pos);
+            const depth = $pos.depth;
 
-            // Only handle doc-level gaps
-            if ($pos.depth !== 0) return false;
+            // Container = the parent whose child-array gap we're filling.
+            // Two cases handled:
+            //   - doc-level gap (depth 0)
+            //   - section-interior gap (parent is a section node — used by
+            //     the heading-fold wrapper). This covers the "can't click
+            //     above the first task item under a heading" case where the
+            //     gap exists but isn't at doc level.
+            // Other depths (lists, blockquotes, tables) keep their own
+            // structural rules.
+            let container: typeof view.state.doc;
+            let containerStart: number;
+            if (depth === 0) {
+              container = view.state.doc;
+              containerStart = 0;
+            } else if ($pos.parent.type.name === "section") {
+              container = $pos.parent;
+              containerStart = $pos.start(depth);
+            } else {
+              return false;
+            }
 
-            const doc = view.state.doc;
-            const indexAfter = $pos.index(0);
+            const indexAfter = $pos.index(depth);
             const indexBefore = indexAfter - 1;
 
             const nodeBefore =
-              indexBefore >= 0 ? doc.child(indexBefore) : null;
+              indexBefore >= 0 ? container.child(indexBefore) : null;
             const nodeAfter =
-              indexAfter < doc.childCount ? doc.child(indexAfter) : null;
+              indexAfter < container.childCount
+                ? container.child(indexAfter)
+                : null;
 
             const hasBlockNeighbor =
               (nodeBefore && isBlockNode(nodeBefore.type.name)) ||
@@ -59,9 +102,9 @@ export const BlockGapInserter = Extension.create({
             if (!hasBlockNeighbor) return false;
 
             // Calculate position at the boundary
-            let boundaryPos = 0;
+            let boundaryPos = containerStart;
             for (let i = 0; i < indexAfter; i++) {
-              boundaryPos += doc.child(i).nodeSize;
+              boundaryPos += container.child(i).nodeSize;
             }
 
             // Check if there's already an empty paragraph adjacent

@@ -99,12 +99,14 @@ Originally `LinkReveal.ts` rendered raw markdown syntax (`**`, `##`, `*`, `~~`, 
 - `parser.ts:436-444` block-level image case — dead code path. Safe to leave.
 - `serializer.ts:116-127` block image case — dead code path. Safe to leave.
 
-### First-block selection inside heading sections
+### First-block selection inside heading sections — FIXED 2026-05-03
 
-**Symptom (user-reported):** when there are 5 checkbox lines under a heading or below a horizontal rule, the first checkbox is unreachable by mouse — selecting bottom-up to the top always omits the top item; selecting top-down sometimes can't place the cursor before the first item or click the first checkbox itself. Reproduces specifically when a list sits flush against a heading or HR; goes away when 2 blank lines separate them.
+**Symptom (user-reported):** when a list (esp. task list / checkboxes) sat flush below a heading or horizontal rule, the first item was unreachable by mouse — selecting bottom-up missed the top item, selecting top-down couldn't place the cursor before the first item or click the first checkbox.
 
-**Root cause:** `BlockGapInserter.ts:44` short-circuits when `$pos.depth !== 0` — the gap-click handler that inserts a paragraph at boundaries only fires for **doc-level** gaps. Sections (`Section.ts`) wrap `heading + block*`, so when a list sits as the first block inside a section (i.e. immediately under a heading), there's no doc-level gap above the list — and the section interior has no gap-click handling at all. Result: no clickable insertion point above the first list item.
+**Root cause:** `BlockGapInserter.ts` only handled doc-level gaps (`$pos.depth === 0`). Two failure modes appeared:
+- For headings: heading-fold sections (`Section.ts`) wrap `heading + block*`, so a list right under a heading sits inside a section at depth 1 — outside the gap handler's scope.
+- For HRs: HRs are atom blocks with surrounding margin space; clicks geometrically in that margin sometimes hit-tested as "inside" the HR rather than as a true between-nodes gap, again falling outside the gap handler.
 
-**Fix shape (rough):** extend `BlockGapInserter` to also handle gaps **inside section nodes** — when the click resolves inside a section but outside any of its children, insert a paragraph at that boundary. Needs care to not collide with the section's defining boundary semantics or the heading row click area.
+**Fix:** generalized `BlockGapInserter`'s click handler to operate on any "container" parent (doc OR section), and added a fallback path for clicks that resolve as `inside` a horizontalRule — if so, the click's Y coordinate vs the HR's midpoint determines whether to treat it as a gap above or below the HR. Both cases then run the same gap-insert logic (insert empty paragraph if neighbor is empty, else insert one fresh).
 
-**Open question:** should this also apply to gaps inside other block containers (blockquotes, list items)? Probably yes for consistency, but scope first to section interior since that's the user-reported case.
+**Cleanup follow-up (not done, low priority):** `"image"` is still in `BLOCK_NODE_NAMES` but image is now an inline node — that entry is unreachable. Cosmetic.
