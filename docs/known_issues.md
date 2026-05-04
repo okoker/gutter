@@ -71,3 +71,19 @@ Limitations and partially-mitigated risks accepted in the current scope, with pl
 **Phase 2 candidates** (both worth investigating; pick after Phase 1 user feedback):
 - **(ii) Marker-journal approach** — revisit a marker-file + recovery-scan design if real-world reports show interrupted conversions happen often enough to matter. The earlier draft's bug was the rollback direction, not the journal concept itself; a corrected design (roll forward from the verified-target commit point, with a per-input deletion progress flag) is implementable. Trade-off: more code, more startup-time overhead, but proactive cleanup.
 - **(iii) Cryptomator-style architecture** — investigate moving to a model where plaintext never touches disk: in-memory only, virtual-filesystem overlay, or all-state-in-encrypted-DB. Eliminates the residue class entirely. Trade-off: significantly larger architectural change, breaks the "encrypted file sits next to plaintext files in any folder" UX that motivates the 3↔1 model in Phase 1.
+
+
+---
+
+## Minimize package size before public distribution
+
+**Reminder:** before cutting a public distribution build, do a size-reduction pass on the app bundle. Current dev/internal builds ship ~10.8 MB without optimization.
+
+**Pointers** (full reasoning lives in chat history, not here):
+- Rust release-profile flags (`lto`, `opt-level=z`, `strip`, `codegen-units=1`, `panic=abort`).
+- Audit `src-tauri/Cargo.toml` for crates pulled in with default features that aren't needed.
+- Lazy-load Mermaid / KaTeX / lowlight via dynamic `import()`.
+- Tree-shake unused Mermaid diagram types; replace `lowlight/common` with explicit language list.
+- Run a bundle visualizer (e.g. `rollup-plugin-visualizer`) once to surface the actual fat.
+
+Realistic floor: ~6–7 MB.
