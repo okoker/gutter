@@ -17,7 +17,7 @@ import { MermaidBlock, MermaidBlockView } from "./Editor/extensions/MermaidBlock
 import { CodeBlockView } from "./Editor/extensions/CodeBlockWithLang";
 import { Frontmatter } from "./Editor/extensions/Frontmatter";
 import { WikiLink } from "./Editor/extensions/WikiLink";
-import { Section } from "./Editor/extensions/Section";
+import { HeadingFold } from "./Editor/extensions/HeadingFold";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useFoldStatePersistence } from "../hooks/useFoldStatePersistence";
 import TaskList from "@tiptap/extension-task-list";
@@ -90,7 +90,7 @@ export function ReadingMode({ content }: ReadingModeProps) {
       WikiLink,
       TaskList,
       TaskItem.configure({ nested: true }),
-      Section,
+      HeadingFold,
     ],
     content: parseMarkdown(content, parentDir(useEditorStore.getState().filePath || "")),
   });

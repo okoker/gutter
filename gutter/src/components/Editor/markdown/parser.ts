@@ -61,11 +61,6 @@ export function parseMarkdown(markdown: string, fileDirPath?: string): JSONConte
     result.push({ type: "paragraph" });
   }
 
-  // Wrap headings + their following content into nested section nodes for
-  // collapse/expand. The wrap is purely an in-memory tree transform; the
-  // serializer flattens sections back so on-disk markdown is unchanged.
-  const wrapped = wrapSections(result);
-
   // Prepend frontmatter node if present
   const docContent: JSONContent[] = [];
   if (frontmatterContent !== null) {
@@ -74,7 +69,7 @@ export function parseMarkdown(markdown: string, fileDirPath?: string): JSONConte
       attrs: { content: frontmatterContent },
     });
   }
-  docContent.push(...wrapped);
+  docContent.push(...result);
 
   const doc: JSONContent = {
     type: "doc",
@@ -87,53 +82,6 @@ export function parseMarkdown(markdown: string, fileDirPath?: string): JSONConte
   }
 
   return doc;
-}
-
-/**
- * Wrap each heading + its following content into nested section nodes.
- * Sections nest by heading level: an H1 section contains H2 sections inside it,
- * which contain H3 sections, etc. Content before the first heading stays loose
- * at the top level (it has no heading to attach a chevron to).
- *
- * Markdown is flat — there's no concept of "this paragraph belongs to that
- * heading" in the source. This pass reconstructs the implicit hierarchy.
- *
- * The serializer's flattenSections inverse undoes this so files on disk are
- * unchanged.
- */
-function wrapSections(blocks: JSONContent[]): JSONContent[] {
-  const out: JSONContent[] = [];
-  let i = 0;
-
-  while (i < blocks.length && blocks[i].type !== "heading") {
-    out.push(blocks[i]);
-    i++;
-  }
-
-  while (i < blocks.length) {
-    const heading = blocks[i];
-    if (heading.type !== "heading") {
-      out.push(heading);
-      i++;
-      continue;
-    }
-    const level = heading.attrs?.level || 1;
-    const body: JSONContent[] = [];
-    let j = i + 1;
-    while (j < blocks.length) {
-      const b = blocks[j];
-      if (b.type === "heading" && (b.attrs?.level || 1) <= level) break;
-      body.push(b);
-      j++;
-    }
-    out.push({
-      type: "section",
-      content: [heading, ...wrapSections(body)],
-    });
-    i = j;
-  }
-
-  return out;
 }
 
 /**

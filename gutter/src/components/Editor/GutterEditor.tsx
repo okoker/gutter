@@ -39,7 +39,7 @@ import { MarkdownLinkInput } from "./extensions/MarkdownLinkInput";
 import { LinkReveal } from "./extensions/LinkReveal";
 import { WikiLinkAutocomplete } from "./extensions/WikiLinkAutocomplete";
 import { BlockGapInserter } from "./extensions/BlockGapInserter";
-import { Section } from "./extensions/Section";
+import { HeadingFold } from "./extensions/HeadingFold";
 import { useWorkspaceStore } from "../../stores/workspaceStore";
 import { useFoldStatePersistence } from "../../hooks/useFoldStatePersistence";
 import TaskList from "@tiptap/extension-task-list";
@@ -242,7 +242,7 @@ export const GutterEditor = forwardRef<GutterEditorHandle, GutterEditorProps>(
         TaskList,
         TaskItem.configure({ nested: true }),
         BlockGapInserter,
-        Section,
+        HeadingFold,
       ],
       content: (() => {
         const storeContent = useEditorStore.getState().content;

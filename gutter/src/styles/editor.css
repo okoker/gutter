@@ -1970,29 +1970,15 @@
   border-radius: 4px;
 }
 
-/* Section fold — heading collapse/expand. Section is a wrapper node owning a
-   permanent chevron button + a contentDOM holding the heading and body. */
-.fold-section {
-  position: relative;
-}
-/* The heading inside a section keeps its own bottom margin (paragraph spacing
-   below the heading) but loses its top margin so the chevron can align with the
-   first text line cleanly. Section spacing is provided by the section itself. */
-.fold-section-content > :first-child {
-  margin-top: 0;
-}
-.fold-section + .fold-section,
-.fold-section-content > .fold-section {
-  margin-top: 1rem;
-}
-.ProseMirror > .fold-section:first-child {
-  margin-top: 0;
-}
-
-.fold-section-chevron {
+/* Heading fold — flat-doc, decoration-based. The chevron is a Decoration.widget
+   inserted just inside each top-level heading at side:-1, so it renders as the
+   first inline element of the heading and can be position-absoluted into the
+   left margin. Body blocks within a folded range get .is-folded via
+   Decoration.node and disappear via display:none. */
+.heading-fold-chevron {
   position: absolute;
   left: -1.5em;
-  top: 0.35em;
+  top: 0.45em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2010,30 +1996,46 @@
   user-select: none;
   z-index: 2;
 }
-.fold-section-chevron svg {
+.heading-fold-chevron svg {
   display: block;
   pointer-events: none;
   transition: transform 150ms ease;
 }
-.fold-section:hover > .fold-section-chevron {
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  position: relative;
+}
+.ProseMirror h1:hover > .heading-fold-chevron,
+.ProseMirror h2:hover > .heading-fold-chevron,
+.ProseMirror h3:hover > .heading-fold-chevron,
+.ProseMirror h4:hover > .heading-fold-chevron,
+.ProseMirror h5:hover > .heading-fold-chevron,
+.ProseMirror h6:hover > .heading-fold-chevron {
   opacity: 0.85;
 }
-.fold-section-chevron:hover,
-.fold-section-chevron:focus-visible {
+.heading-fold-chevron:hover,
+.heading-fold-chevron:focus-visible {
   opacity: 1;
   background: var(--surface-hover);
   color: var(--text-primary);
 }
-.fold-section.is-folded > .fold-section-chevron {
+/* Folded heading: rotate the chevron via a class on the heading itself
+   (added by Decoration.node), so the chevron widget DOM stays mounted
+   across fold toggles — no flicker, no rebuild. */
+.ProseMirror .is-fold-collapsed > .heading-fold-chevron {
   opacity: 0.85;
 }
-.fold-section.is-folded > .fold-section-chevron svg {
+.ProseMirror .is-fold-collapsed > .heading-fold-chevron svg {
   transform: rotate(-90deg);
 }
 
-/* When folded, hide every direct child of contentDOM except the heading
-   (always the first child per schema). */
-.fold-section.is-folded > .fold-section-content > *:not(:first-child) {
+/* Block-level hide for any block decorated as folded. The Decoration.node
+   selector targets the block element directly. */
+.ProseMirror .is-folded {
   display: none;
 }
 
