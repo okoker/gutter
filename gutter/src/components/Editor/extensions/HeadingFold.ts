@@ -183,6 +183,36 @@ function buildChevron(view: EditorView, getPos: () => number | undefined): HTMLE
 export const HeadingFold = Extension.create({
   name: "headingFold",
 
+  addKeyboardShortcuts() {
+    return {
+      // Backspace at start of a heading: convert to paragraph. Headings are
+      // `defining: true` in StarterKit, which blocks the default
+      // joinBackward — so without this shortcut, an empty heading line
+      // becomes undeletable except via the right-click "Remove Formatting"
+      // menu. Convention shared by Notion, Obsidian, Bear: heading-start
+      // Backspace downgrades the block. After conversion, a second
+      // Backspace will merge the now-paragraph with the previous block via
+      // the default keymap.
+      Backspace: () => {
+        const { state, view } = this.editor;
+        const sel = state.selection;
+        if (!sel.empty) return false;
+
+        const $from = sel.$from;
+        if ($from.parent.type.name !== "heading") return false;
+        if ($from.parentOffset !== 0) return false;
+
+        const paragraphType = state.schema.nodes.paragraph;
+        if (!paragraphType) return false;
+
+        const insidePos = $from.before($from.depth) + 1;
+        const tr = state.tr.setBlockType(insidePos, insidePos, paragraphType);
+        view.dispatch(tr);
+        return true;
+      },
+    };
+  },
+
   addProseMirrorPlugins() {
     return [
       new Plugin<FoldState>({
