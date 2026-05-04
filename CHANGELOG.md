@@ -8,7 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-*No changes yet since 0.9.0.*
+### Changed
+
+- **Heading fold rebuilt as flat-doc + decoration plugin.** Replaces the prior `Section.ts` wrapper-node approach. The new `HeadingFold` extension keeps the document flat (markdown on disk = JSON in memory; no in-memory wrapper); fold state is a `Set<headingPos>` in plugin state; the chevron is a `Decoration.widget` whose key depends only on position so the DOM survives toggles without flicker; folded body blocks get `class:"is-folded"` via `Decoration.node` + CSS `display:none`; visual rotation comes from a separate `is-fold-collapsed` class on the heading; auto-unfold runs only on selection change and only when the cursor enters a folded body. Modeled on Zettlr (CodeMirror 6) and VS Code (Monaco), both source-cited in `docs/plans/heading_fold_v2.md`.
+  - **Why:** the wrapper-node approach was the wrong abstraction for live editing — it meant chevrons didn't appear on edit-time-created headings until save+reopen, `defining: true` blocked Backspace and Enter, and selection across the wrapper jittered. Both leading editors that ship this feature converge on the flat-doc decoration pattern.
+  - **Net change:** 290 lines of `Section.ts` (wrapper node + section-aware Backspace/Enter shortcuts + foldPlugin) deleted, replaced by ~250 lines of `HeadingFold.ts`. `wrapSections` and `flattenSections` removed from parser/serializer — the parse/serialize wrap/unwrap dance is no longer needed. Round-trip tests unchanged (still 11/11). Fold state persistence across tab switches still works via `useFoldStatePersistence`, rewired to the new plugin key.
+
+### Fixed
+
+- **Empty heading line is no longer undeletable.** StarterKit's heading is `defining: true`, which blocks the default `joinBackward` — so an empty `## ` line could only be removed via right-click → Remove Formatting. `HeadingFold` now adds a Backspace shortcut: at the start of any heading (empty or not), one Backspace converts heading → paragraph in place; a second Backspace then merges the paragraph with the previous block via the default keymap. Convention shared by Notion, Obsidian, and Bear.
 
 ---
 

@@ -104,7 +104,7 @@ Originally `LinkReveal.ts` rendered raw markdown syntax (`**`, `##`, `*`, `~~`, 
 **Symptom (user-reported):** when a list (esp. task list / checkboxes) sat flush below a heading or horizontal rule, the first item was unreachable by mouse — selecting bottom-up missed the top item, selecting top-down couldn't place the cursor before the first item or click the first checkbox.
 
 **Root cause:** `BlockGapInserter.ts` only handled doc-level gaps (`$pos.depth === 0`). Two failure modes appeared:
-- For headings: heading-fold sections (`Section.ts`) wrap `heading + block*`, so a list right under a heading sits inside a section at depth 1 — outside the gap handler's scope.
+- For headings: at the time of this fix, the prior heading-fold architecture (`Section.ts`) wrapped `heading + block*`, so a list right under a heading sat inside a section at depth 1 — outside the gap handler's scope. (The section wrapper was later removed; see commit 9befee4 + `docs/plans/heading_fold_v2.md`.)
 - For HRs: HRs are atom blocks with surrounding margin space; clicks geometrically in that margin sometimes hit-tested as "inside" the HR rather than as a true between-nodes gap, again falling outside the gap handler.
 
 **Fix:** generalized `BlockGapInserter`'s click handler to operate on any "container" parent (doc OR section), and added a fallback path for clicks that resolve as `inside` a horizontalRule — if so, the click's Y coordinate vs the HR's midpoint determines whether to treat it as a gap above or below the HR. Both cases then run the same gap-insert logic (insert empty paragraph if neighbor is empty, else insert one fresh).

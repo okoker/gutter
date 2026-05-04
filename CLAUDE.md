@@ -126,7 +126,7 @@ Custom TipTap extensions in `src/components/Editor/extensions/`:
 - **Frontmatter.tsx** — YAML frontmatter support with edit mode
 - **SpellCheck.ts** — toggleable spell check
 - **BlockGapInserter.ts** — click between adjacent block nodes to insert paragraphs
-- **Section.ts** — heading-fold wrapper node + NodeView + decoration plugin (`section { content: "heading block*" }`); `wrapSections`/`flattenSections` keep markdown on disk byte-identical
+- **HeadingFold.ts** — flat-doc heading collapse/expand, decoration-based (modeled on Zettlr/CodeMirror 6 + VS Code/Monaco). Plugin state holds `Set<headingPos>`; chevron is a `Decoration.widget` per top-level heading; folded body blocks get `class:"is-folded"` via `Decoration.node` + CSS `display:none`; visual rotation comes from a separate `is-fold-collapsed` class on the heading (chevron DOM stays mounted across toggles). Auto-unfolds when the cursor enters a folded range. Also owns the Backspace-at-heading-start shortcut that downgrades heading → paragraph (StarterKit's heading is `defining: true`, which would otherwise leave empty heading lines undeletable). No structural wrapping: markdown on disk = JSON in memory. Replaces the prior `Section.ts` wrapper-node approach. Fold state persists across tab switches via `useFoldStatePersistence` + `OpenTab.foldedPositions`. Plan + research: `docs/plans/heading_fold_v2.md`.
 
 ### Cross-Component Communication (CustomEvents)
 
